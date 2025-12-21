@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] - 2025-12-21
+
+### Changed
+
+- `perch.lib.submodules.make` result behavior
+
 ## [1.0.2] - 2025-12-21
 
 ### Changed
@@ -29,5 +35,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - everything
 
-[1.0.1]: https://github.com/altibiz/ozds/compare/1.0.0...1.0.1
+[1.0.3]: https://github.com/haras-unicorn/perch/compare/1.0.2...1.0.3
+[1.0.2]: https://github.com/haras-unicorn/perch/compare/1.0.1...1.0.2
+[1.0.1]: https://github.com/haras-unicorn/perch/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/haras-unicorn/perch/releases/tag/1.0.0
