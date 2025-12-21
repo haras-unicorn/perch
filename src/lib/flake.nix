@@ -53,26 +53,22 @@
               prefixedRootModules // selfModuleAttrs
             );
 
-            libEval = self.lib.eval.flake (
+            libSpecialArgs = (
               inputs
               // {
                 inherit root;
                 self.lib = selfLib;
               }
-            ) (inputModulesFromInputs ++ inputModules) libModules;
+            );
+
+            libEval = self.lib.eval.flake libSpecialArgs (inputModulesFromInputs ++ inputModules) libModules;
 
             selfLib =
               if libEval.config ? flake && libEval.config.flake ? lib then libEval.config.flake.lib else { };
           in
-          self.lib.eval.flake (
-            inputs
-            // {
-              inherit root;
-              self = (if inputs ? self then inputs.self else { }) // {
-                lib = selfLib;
-              };
-            }
-          ) (inputModulesFromInputs ++ inputModules) (prefixedRootModules // selfModuleAttrs);
+          self.lib.eval.flake libSpecialArgs (inputModulesFromInputs ++ inputModules) (
+            prefixedRootModules // selfModuleAttrs
+          );
     in
     if eval.config ? flake then eval.config.flake else { };
 }
