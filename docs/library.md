@@ -187,10 +187,12 @@ The `perch.lib` library is split by its modules.
     inputModules ? [ ],
     includeInputModulesFromInputs ? true,
     separator ? "-",
+    libPrefix ? null,
   } -> flake
   ```
 
   Creates a flake based on the provided inputs and root/prefix or selfModules.
+  Evaluates modules with the `libPrefix` first if provided.
 
 ## Import
 

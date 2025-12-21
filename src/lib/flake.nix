@@ -10,9 +10,10 @@
       inputModules ? [ ],
       includeInputModulesFromInputs ? true,
       separator ? "-",
+      libPrefix ? null,
     }:
     let
-      selfModule =
+      selfModuleAttrs =
         if builtins.isList selfModules then
           builtins.listToAttrs (
             lib.imap (i: module: {
@@ -41,9 +42,37 @@
             ) selflessInputList
           );
 
-      eval = self.lib.eval.flake (inputs // { inherit root; }) (inputModulesFromInputs ++ inputModules) (
-        prefixedRootModules // selfModule
-      );
+      eval =
+        if libPrefix == null then
+          self.lib.eval.flake (inputs // { inherit root; }) (inputModulesFromInputs ++ inputModules) (
+            prefixedRootModules // selfModuleAttrs
+          )
+        else
+          let
+            libModules = lib.filterAttrs (name: _: lib.hasPrefix libPrefix name) (
+              prefixedRootModules // selfModuleAttrs
+            );
+
+            libEval = self.lib.eval.flake (
+              inputs
+              // {
+                inherit root;
+                self.lib = selfLib;
+              }
+            ) (inputModulesFromInputs ++ inputModules) libModules;
+
+            selfLib =
+              if libEval.config ? flake && libEval.config.flake ? lib then libEval.config.flake.lib else { };
+          in
+          self.lib.eval.flake (
+            inputs
+            // {
+              inherit root;
+              self = (if inputs ? self then inputs.self else { }) // {
+                lib = selfLib;
+              };
+            }
+          ) (inputModulesFromInputs ++ inputModules) (prefixedRootModules // selfModuleAttrs);
     in
     if eval.config ? flake then eval.config.flake else { };
 }
