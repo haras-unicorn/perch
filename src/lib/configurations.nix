@@ -75,6 +75,7 @@
                 result.config.${config}
               else
                 null;
+
             default =
               if result ? ${defaultConfig} then
                 result.${defaultConfig}
@@ -85,6 +86,13 @@
           in
           if value == null then
             null
+          else if value ? config || value ? options then
+            value
+            // {
+              config = value.config // {
+                __perch_default = default;
+              };
+            }
           else
             value
             // {

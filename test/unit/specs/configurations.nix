@@ -9,7 +9,7 @@ let
     boot.loader.grub.device = "nodev";
     system.stateVersion = "25.11";
   };
-  linuxConf = {
+  linuxConf.config = {
     fileSystems."/" = {
       device = "/dev/disk/by-label/NIXALL";
       fsType = "ext4";
@@ -56,8 +56,8 @@ in
     (self.lib.debug.trace (
       builtins.mapAttrs (_: value: value.config.fileSystems."/".device) configurations
     )) == {
-      "linux-only-aarch64-linux" = linuxConf.fileSystems."/".device;
+      "linux-only-aarch64-linux" = linuxConf.config.fileSystems."/".device;
       "x86_64-linux-only-x86_64-linux" = x86conf.fileSystems."/".device;
-      "linux-only-x86_64-linux" = linuxConf.fileSystems."/".device;
+      "linux-only-x86_64-linux" = linuxConf.config.fileSystems."/".device;
     };
 }
