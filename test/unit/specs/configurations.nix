@@ -53,9 +53,7 @@ let
 in
 {
   configurations_make_correct =
-    (self.lib.debug.trace (
-      builtins.mapAttrs (_: value: value.config.fileSystems."/".device) configurations
-    )) == {
+    (builtins.mapAttrs (_: value: value.config.fileSystems."/".device) configurations) == {
       "linux-only-aarch64-linux" = linuxConf.config.fileSystems."/".device;
       "x86_64-linux-only-x86_64-linux" = x86conf.fileSystems."/".device;
       "linux-only-x86_64-linux" = linuxConf.config.fileSystems."/".device;

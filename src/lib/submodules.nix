@@ -49,12 +49,16 @@
           (_: args: args // specialArgs)
           (
             _: result:
-            if result ? ${config} then
-              result.${config}
-            else if result ? config && result.config ? ${config} then
-              result.config.${config}
-            else
-              { }
+            (
+              if result ? ${config} then
+                result.${config}
+              else if result ? config && result.config ? ${config} then
+                result.config.${config}
+              else
+                { }
+            )
+            // (if result ? key then { key = result.key; } else { })
+            // (if result ? _file then { _file = result._file; } else { })
           )
       ) (filteredModules // defaultModule);
     in

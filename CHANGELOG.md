@@ -7,6 +7,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-01-05
+
+### Added
+
+- `mapConfig` and `mapOptions` arguments for factory library functions
+- `packagesAsApps` and `packagesAsLegacyPackages` options that are turned on by
+  default
+
+### Changed
+
+- app output fix
+
 ## [1.0.4] - 2025-12-21
 
 ### Changed
@@ -41,6 +53,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - everything
 
+[1.1.0]: https://github.com/haras-unicorn/perch/compare/1.0.4...1.1.0
 [1.0.4]: https://github.com/haras-unicorn/perch/compare/1.0.3...1.0.4
 [1.0.3]: https://github.com/haras-unicorn/perch/compare/1.0.2...1.0.3
 [1.0.2]: https://github.com/haras-unicorn/perch/compare/1.0.1...1.0.2

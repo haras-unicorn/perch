@@ -127,8 +127,11 @@ The `perch.lib` library is split by its modules.
     superConfig,
     superOptions,
     config,
+    configs ? "${config}s",
     submoduleType ? lib.types.attrsOf lib.types.raw,
-    mapSubmodules ? (_: _),
+    mapSubmodules ? _: _,
+    mapConfig ? _: _: _,
+    mapOptions ? _: _,
   } -> module result
   ```
 
@@ -149,6 +152,8 @@ The `perch.lib` library is split by its modules.
     configs ? "${config}s",
     artifactType ? lib.types.attrsOf (lib.types.attrsOf lib.types.raw),
     mapArtifacts ? (_: _),
+    mapConfig ? _: _: _,
+    mapOptions ? _: _,
   } -> module result
   ```
 
@@ -166,8 +171,11 @@ The `perch.lib` library is split by its modules.
     nixpkgs,
     nixpkgsConfig,
     config,
+    configs ? "${config}s",
     configurationType ? lib.types.attrsOf lib.types.raw,
     mapConfigurations ? (_: _),
+    mapConfig ? _: _: _,
+    mapOptions ? _: _,
   } -> module result
   ```
 

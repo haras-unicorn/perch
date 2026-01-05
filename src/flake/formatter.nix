@@ -18,15 +18,10 @@ self.lib.factory.artifactModule {
   configs = "formatter";
   artifactType = lib.types.attrsOf lib.types.raw;
   mapArtifacts =
-    artifacts:
-    builtins.listToAttrs (
-      builtins.map (
-        { name, value }:
-        {
-          inherit name;
-          # NOTE: there should always be at least one
-          value = (builtins.head (lib.attrsToList value)).value;
-        }
-      ) (lib.attrsToList artifacts)
-    );
+    formatters:
+    builtins.mapAttrs (
+      _: systemFormatters:
+      # NOTE: there should always be at least one
+      builtins.head (builtins.attrValues systemFormatters)
+    ) formatters;
 }
