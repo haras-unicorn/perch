@@ -75,12 +75,21 @@ repl test *args:
       nix repl \
         {{ args }} \
         --override-flake perch '{{ root }}' \
+        --no-write-lock-file \
         --expr 'rec { \
           perch = "{{ root }}"; \
           perchFlake = builtins.getFlake perch; \
           test = "{{ root }}/test/e2e/{{ test }}"; \
           testFlake = builtins.getFlake test; \
         }'
+
+run test app="" *args:
+    cd '{{ root }}/test/e2e/{{ test }}'; \
+      nix run \
+        '.#{{ app }}' \
+        {{ args }} \
+        --no-write-lock-file \
+        --override-flake perch '{{ root }}'
 
 dev-docs:
     mdbook serve '{{ root }}/docs'

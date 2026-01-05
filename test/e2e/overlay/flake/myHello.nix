@@ -16,15 +16,15 @@
     };
   };
 
-  defaultPackage = true;
-  packageNixpkgs = {
+  defaultApp = true;
+  appNixpkgs = {
     system = [
       "x86_64-linux"
       "x86_64-darwin"
     ];
     overlays = [ self.overlays.default ];
   };
-  package = pkgs.myHello;
+  app = pkgs.myHello;
 
   defaultNixosModule = true;
   nixosModule = {

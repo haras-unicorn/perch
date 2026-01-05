@@ -131,10 +131,12 @@ let
 in
 rec {
   factory_submodule_artifact_correct =
-    (builtins.removeAttrs flakeResult [
-      "modules"
-      "nixosConfigurations"
-    ]) == {
+    (self.lib.debug.trace (
+      builtins.removeAttrs flakeResult [
+        "modules"
+        "nixosConfigurations"
+      ]
+    )) == {
       apps = {
         aarch64-darwin = {
           allDefaultSystems = "aarch64-darwin hello all default systems :)";
@@ -152,12 +154,15 @@ rec {
       };
       nixosModules = {
         default = {
+          key = "someNixosModule";
           value = "some hello :)";
         };
         otherNixosModule = {
+          key = "otherNixosModule";
           value = "other hello :)";
         };
         someNixosModule = {
+          key = "someNixosModule";
           value = "some hello :)";
         };
       };

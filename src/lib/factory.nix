@@ -8,11 +8,13 @@
       superConfig,
       superOptions,
       config,
+      configs ? "${config}s",
       submoduleType ? lib.types.attrsOf lib.types.raw,
-      mapSubmodules ? (_: _),
+      mapSubmodules ? _: _,
+      mapConfig ? _: _: _,
+      mapOptions ? _: _,
     }:
     let
-      configs = "${config}s";
       defaultConfig = "default${self.lib.string.capitalize config}";
 
       submodules = mapSubmodules (
@@ -34,30 +36,33 @@
       );
     in
     {
-      config.eval.allowedArgs = [
-        "super"
-        "pkgs"
-      ];
+      options = mapOptions {
+        ${defaultConfig} = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+        };
+        ${config} = lib.mkOption {
+          type = lib.types.attrsOf lib.types.raw;
+        };
+        flake.${configs} = lib.mkOption {
+          type = submoduleType;
+        };
+      };
 
-      options.${defaultConfig} = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
+      config = mapConfig submodules {
+        flake.${configs} = submodules;
+        eval.allowedArgs = [
+          "super"
+          "pkgs"
+        ];
+        eval.privateConfig = [ [ config ] ];
+        eval.publicConfig = [
+          [
+            "flake"
+            configs
+          ]
+        ];
       };
-      options.${config} = lib.mkOption {
-        type = lib.types.attrsOf lib.types.raw;
-      };
-      config.eval.privateConfig = [ [ config ] ];
-
-      options.flake.${configs} = lib.mkOption {
-        type = submoduleType;
-        default = submodules;
-      };
-      config.eval.publicConfig = [
-        [
-          "flake"
-          configs
-        ]
-      ];
     };
 
   flake.lib.factory.artifactModule =
@@ -72,6 +77,8 @@
       configs ? "${config}s",
       artifactType ? lib.types.attrsOf (lib.types.attrsOf lib.types.raw),
       mapArtifacts ? (_: _),
+      mapConfig ? _: _: _,
+      mapOptions ? _: _,
     }:
     let
       defaultConfig = "default${self.lib.string.capitalize config}";
@@ -97,34 +104,37 @@
       );
     in
     {
-      config.eval.allowedArgs = [ "pkgs" ];
+      options = mapOptions {
+        ${defaultConfig} = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+        };
+        ${config} = lib.mkOption {
+          type = lib.types.raw;
+        };
+        ${nixpkgsConfig} = lib.mkOption {
+          type = self.lib.type.nixpkgs.config;
+        };
+        flake.${configs} = lib.mkOption {
+          type = artifactType;
+        };
+      };
 
-      options.${defaultConfig} = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
+      config = mapConfig artifacts {
+        flake.${configs} = artifacts;
+        eval.allowedArgs = [ "pkgs" ];
+        eval.privateConfig = [
+          [ nixpkgsConfig ]
+          [ config ]
+          [ defaultConfig ]
+        ];
+        eval.publicConfig = [
+          [
+            "flake"
+            configs
+          ]
+        ];
       };
-      options.${config} = lib.mkOption {
-        type = lib.types.raw;
-      };
-      options.${nixpkgsConfig} = lib.mkOption {
-        type = self.lib.type.nixpkgs.config;
-      };
-      config.eval.privateConfig = [
-        [ nixpkgsConfig ]
-        [ config ]
-        [ defaultConfig ]
-      ];
-
-      options.flake.${configs} = lib.mkOption {
-        type = artifactType;
-        default = artifacts;
-      };
-      config.eval.publicConfig = [
-        [
-          "flake"
-          configs
-        ]
-      ];
     };
 
   flake.lib.factory.configurationModule =
@@ -136,11 +146,13 @@
       nixpkgs,
       nixpkgsConfig,
       config,
+      configs ? "${config}s",
       configurationType ? lib.types.attrsOf lib.types.raw,
       mapConfigurations ? (_: _),
+      mapConfig ? _: _: _,
+      mapOptions ? _: _,
     }:
     let
-      configs = "${config}s";
       defaultConfig = "default${self.lib.string.capitalize config}";
 
       configurations = mapConfigurations (
@@ -164,36 +176,39 @@
       );
     in
     {
-      config.eval.allowedArgs = [
-        "super"
-        "pkgs"
-      ];
+      options = mapOptions {
+        ${defaultConfig} = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+        };
+        ${config} = lib.mkOption {
+          type = lib.types.raw;
+        };
+        ${nixpkgsConfig} = lib.mkOption {
+          type = self.lib.type.nixpkgs.config;
+        };
+        flake.${configs} = lib.mkOption {
+          type = configurationType;
+        };
+      };
 
-      options.${defaultConfig} = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
+      config = mapConfig configurations {
+        flake.${configs} = configurations;
+        eval.allowedArgs = [
+          "super"
+          "pkgs"
+        ];
+        eval.privateConfig = [
+          [ nixpkgsConfig ]
+          [ config ]
+          [ defaultConfig ]
+        ];
+        eval.publicConfig = [
+          [
+            "flake"
+            configs
+          ]
+        ];
       };
-      options.${config} = lib.mkOption {
-        type = lib.types.raw;
-      };
-      options.${nixpkgsConfig} = lib.mkOption {
-        type = self.lib.type.nixpkgs.config;
-      };
-      config.eval.privateConfig = [
-        [ nixpkgsConfig ]
-        [ config ]
-        [ defaultConfig ]
-      ];
-
-      options.flake.${configs} = lib.mkOption {
-        type = configurationType;
-        default = configurations;
-      };
-      config.eval.publicConfig = [
-        [
-          "flake"
-          configs
-        ]
-      ];
     };
 }

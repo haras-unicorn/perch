@@ -14,15 +14,28 @@
     }:
     let
       selfModuleAttrs =
-        if builtins.isList selfModules then
-          builtins.listToAttrs (
-            lib.imap (i: module: {
-              name = "module-${builtins.toString i}";
-              value = module;
-            }) selfModules
+        builtins.mapAttrs
+          (
+            name: module:
+            self.lib.module.patch (_: args: args) (_: args: args) (
+              _: result:
+              result
+              // {
+                key = name;
+              }
+            ) module
           )
-        else
-          selfModules;
+          (
+            if builtins.isList selfModules then
+              builtins.listToAttrs (
+                lib.imap (i: module: {
+                  name = "module-${builtins.toString i}";
+                  value = module;
+                }) selfModules
+              )
+            else
+              selfModules
+          );
 
       prefixedRoot = if root == null || prefix == null then null else lib.path.append root prefix;
 

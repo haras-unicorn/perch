@@ -1,5 +1,6 @@
 {
   self,
+  lib,
   nixpkgs,
   flakeModules,
   specialArgs,
@@ -14,4 +15,13 @@ self.lib.factory.artifactModule {
   superOptions = options;
   nixpkgsConfig = "appNixpkgs";
   config = "app";
+  mapArtifacts =
+    apps:
+    builtins.mapAttrs (
+      system: systemApps:
+      builtins.mapAttrs (name: app: {
+        type = "app";
+        program = lib.getExe app;
+      }) systemApps
+    ) apps;
 }
