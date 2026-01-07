@@ -37,3 +37,4 @@ words:
   - nixfmt
   - beforementioned
   - abovementioned
+  - stdenv

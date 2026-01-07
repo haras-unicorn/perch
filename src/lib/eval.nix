@@ -64,6 +64,10 @@
             default = { };
           };
 
+          config._module.args = {
+            flakeModules = modules;
+          };
+
           config.filtered = builtins.listToAttrs (
             builtins.map (module: {
               name = module;
@@ -86,66 +90,13 @@
   flake.lib.eval.flake =
     specialArgs: inputModules: selfModules:
     let
-      anyStageEvalModule = {
-        _file = ./eval.nix;
-        key = "eval";
-
-        options = {
-          eval.privateConfig = lib.mkOption {
-            type = lib.types.listOf (lib.types.listOf lib.types.str);
-            default = [ ];
-          };
-
-          eval.publicConfig = lib.mkOption {
-            type = lib.types.listOf (lib.types.listOf lib.types.str);
-            default = [ ];
-          };
-
-          eval.allowedArgs = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
-            default = [ ];
-          };
-
-          flake = {
-            modules = lib.mkOption {
-              type = lib.types.attrsOf lib.types.deferredModule;
-              default = { };
-            };
-          };
-        };
-
-        config = {
-          eval.privateConfig = [
-            [
-              "flake"
-              "modules"
-            ]
-          ];
-
-          eval.publicConfig = [
-            [
-              "eval"
-              "privateConfig"
-            ]
-            [
-              "eval"
-              "publicConfig"
-            ]
-            [
-              "eval"
-              "allowedArgs"
-            ]
-          ];
-        };
-      };
-
       selfModuleList = builtins.attrValues selfModules;
 
       stageOneEvalModule = {
         _file = ./eval.nix;
         key = "evalStageOne";
 
-        imports = [ anyStageEvalModule ];
+        imports = [ self.lib.eval.flakeEvalModule ];
 
         config = {
           _module.args = {
@@ -214,7 +165,7 @@
         _file = ./eval.nix;
         key = "evalStageTwo";
 
-        imports = [ anyStageEvalModule ];
+        imports = [ self.lib.eval.flakeEvalModule ];
 
         config = {
           _module.args = {
@@ -236,4 +187,62 @@
       };
     in
     stageTwoEval;
+
+  # NOTE: function so `flake.lib` option shuts up
+  flake.lib.eval.flakeEvalModule =
+    { ... }:
+    {
+      _file = ./eval.nix;
+      key = "eval";
+
+      options = {
+        eval.privateConfig = lib.mkOption {
+          type = lib.types.listOf (lib.types.listOf lib.types.str);
+          default = [ ];
+          description = "Private configuration paths not exposed in output flake modules";
+        };
+
+        eval.publicConfig = lib.mkOption {
+          type = lib.types.listOf (lib.types.listOf lib.types.str);
+          default = [ ];
+          description = "Public configuration paths are exposed in output flake modules";
+        };
+
+        eval.allowedArgs = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          description = "List of allowed argument names for module evaluation";
+        };
+
+        flake.modules = lib.mkOption {
+          type = lib.types.attrsOf lib.types.deferredModule;
+          default = { };
+          description = "Modules prepared for use in other flakes";
+        };
+      };
+
+      config = {
+        eval.privateConfig = [
+          [
+            "flake"
+            "modules"
+          ]
+        ];
+
+        eval.publicConfig = [
+          [
+            "eval"
+            "privateConfig"
+          ]
+          [
+            "eval"
+            "publicConfig"
+          ]
+          [
+            "eval"
+            "allowedArgs"
+          ]
+        ];
+      };
+    };
 }

@@ -47,9 +47,7 @@
       ) flakeModules;
 
       nixpkgsAttrEval = lib.evalModules {
-        specialArgs = specialArgs // {
-          pkgs = null;
-        };
+        inherit specialArgs;
         modules = (builtins.attrValues nixpkgsAttrModules) ++ [
           (
             { lib, ... }:
@@ -57,6 +55,10 @@
               options.nixpkgs = lib.mkOption {
                 type = lib.types.attrsOf (lib.types.listOf self.lib.type.nixpkgs.config);
                 default = { };
+              };
+              config._module.args = {
+                inherit flakeModules;
+                pkgs = null;
               };
             }
           )
@@ -97,9 +99,7 @@
               conf:
               let
                 eval = lib.evalModules {
-                  specialArgs = specialArgs // {
-                    pkgs = import nixpkgs conf;
-                  };
+                  inherit specialArgs;
                   modules = [
                     valueModules.${module}
                     (
@@ -112,6 +112,10 @@
                         options.default = lib.mkOption {
                           type = lib.types.bool;
                           default = false;
+                        };
+                        config._module.args = {
+                          inherit flakeModules;
+                          pkgs = import nixpkgs conf;
                         };
                       }
                     )

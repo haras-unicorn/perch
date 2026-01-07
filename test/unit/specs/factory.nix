@@ -113,17 +113,17 @@ let
       x86_64_Only =
         { pkgs, ... }:
         {
-          package = "${pkgs.system} hello x86_64-linux :)";
+          package = "${pkgs.stdenv.hostPlatform.system} hello x86_64-linux :)";
           packageNixpkgs.system = "x86_64-linux";
-          app = "${pkgs.system} hello x86_64-linux :)";
+          app = "${pkgs.stdenv.hostPlatform.system} hello x86_64-linux :)";
           appNixpkgs.system = "x86_64-linux";
         };
       allDefaultSystems =
         { pkgs, ... }:
         {
-          package = "${pkgs.system} hello all default systems :)";
+          package = "${pkgs.stdenv.hostPlatform.system} hello all default systems :)";
           defaultPackage = true;
-          app = "${pkgs.system} hello all default systems :)";
+          app = "${pkgs.stdenv.hostPlatform.system} hello all default systems :)";
         };
       none = { };
     };

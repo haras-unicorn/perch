@@ -9,6 +9,9 @@
 
       # documentation
       mdbook
+
+      # format
+      prettier
     ];
   };
 }

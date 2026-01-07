@@ -20,6 +20,7 @@
           package = pkgs.writeShellApplication {
             name = "fizzbuzz";
             text = builtins.readFile ./fizzbuzz.sh;
+            meta.description = "fizzbuzz";
           };
 
           defaultNixosModule = true;
@@ -29,7 +30,7 @@
             };
             config = lib.mkIf config.programs.fizzbuzz.enable {
               environment.systemPackages = [
-                self.packages.${pkgs.system}.default
+                self.packages.${pkgs.stdenv.hostPlatform.system}.default
               ];
             };
           };

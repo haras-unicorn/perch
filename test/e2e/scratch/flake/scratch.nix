@@ -53,6 +53,7 @@
       name = "hello";
       runtimeInputs = [ pkgs.hello ];
       text = "hello";
+      meta.description = "hello";
     };
 
     checkNixpkgs.system = [

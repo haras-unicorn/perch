@@ -10,6 +10,7 @@
     myHello = final.writeShellApplication {
       name = "hello";
       runtimeInputs = [ prev.hello ];
+      meta.description = "hello";
       text = ''
         hello
       '';
