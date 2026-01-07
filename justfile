@@ -35,6 +35,7 @@ test-e2e-all *args:
         --override-flake "perch" "{{ root }}"
         --all-systems
         --no-write-lock-file
+        --option abort-on-warn true
         {{ args }}
         $"path:(realpath $in)")
     }
@@ -44,6 +45,7 @@ test-e2e test *args:
       --override-flake "perch" "{{ root }}" \
       --all-systems \
       --no-write-lock-file \
+      --option abort-on-warn true \
       {{ args }} \
       $"path:("{{ root }}/test/e2e/{{ test }}")"
 
@@ -53,6 +55,7 @@ test-unit filter="":
       --json
       --impure
       --show-trace
+      --option abort-on-warn true
       --expr
       '(builtins.getFlake "{{ root }}/test/unit").test {
         root = "{{ root }}";
@@ -96,5 +99,11 @@ dev-docs:
 
 docs:
     rm -rf '{{ root }}/artifacts'
+    "# Options\n\n" + \
+      (open --raw \
+        (nix build --no-link --print-out-paths \
+          '{{ root }}#flake-options')) \
+      | save -f '{{ root }}/docs/options.md'
+    prettier --write '{{ root }}/docs/options.md'
     cd '{{ root }}/docs'; mdbook build
     mv '{{ root }}/docs/book' '{{ root }}/artifacts'

@@ -57,9 +57,15 @@
 
       eval =
         if libPrefix == null then
-          self.lib.eval.flake (inputs // { inherit root; }) (inputModulesFromInputs ++ inputModules) (
-            prefixedRootModules // selfModuleAttrs
-          )
+          self.lib.eval.flake (
+            inputs
+            // {
+              inherit root;
+              inputs = inputs // {
+                inherit root;
+              };
+            }
+          ) (inputModulesFromInputs ++ inputModules) (prefixedRootModules // selfModuleAttrs)
         else
           let
             libModules = lib.filterAttrs (name: _: lib.hasPrefix libPrefix name) (
@@ -70,6 +76,12 @@
               inputs
               // {
                 inherit root;
+                inputs = inputs // {
+                  inherit root;
+                  self.lib = selfLib;
+                };
+              }
+              // {
                 self.lib = selfLib;
               }
             );

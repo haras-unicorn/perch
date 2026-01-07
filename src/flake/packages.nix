@@ -22,10 +22,12 @@ self.lib.factory.artifactModule {
       packagesAsApps = lib.mkOption {
         type = lib.types.bool;
         default = true;
+        description = "Convert all packages to apps and put them in flake outputs";
       };
       packagesAsLegacyPackages = lib.mkOption {
         type = lib.types.bool;
         default = true;
+        description = "Convert all packages to legacy packages and put them in flake outputs";
       };
     };
   mapConfig = packages: prev: {
@@ -45,6 +47,7 @@ self.lib.factory.artifactModule {
           builtins.mapAttrs (name: package: {
             type = "app";
             program = lib.getExe package;
+            meta = package.meta or { };
           }) systemPackages
         ) packages
       );

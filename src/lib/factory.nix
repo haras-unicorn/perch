@@ -40,12 +40,15 @@
         ${defaultConfig} = lib.mkOption {
           type = lib.types.bool;
           default = false;
+          description = "Whether to set this as the default ${config}";
         };
         ${config} = lib.mkOption {
           type = lib.types.attrsOf lib.types.raw;
+          description = "Result of the ${config}";
         };
         flake.${configs} = lib.mkOption {
           type = submoduleType;
+          description = "Attribute set of all ${configs} in the flake";
         };
       };
 
@@ -108,15 +111,19 @@
         ${defaultConfig} = lib.mkOption {
           type = lib.types.bool;
           default = false;
+          description = "Whether to set this as the default ${config}";
         };
         ${config} = lib.mkOption {
           type = lib.types.raw;
+          description = "The ${config}";
         };
         ${nixpkgsConfig} = lib.mkOption {
           type = self.lib.type.nixpkgs.config;
+          description = "Nixpkgs configuration for ${config}";
         };
         flake.${configs} = lib.mkOption {
           type = artifactType;
+          description = "Attribute set of all ${configs} in the flake";
         };
       };
 
@@ -180,15 +187,19 @@
         ${defaultConfig} = lib.mkOption {
           type = lib.types.bool;
           default = false;
+          description = "Whether to set this as the default ${config}";
         };
         ${config} = lib.mkOption {
           type = lib.types.raw;
+          description = "The module result for ${config}";
         };
         ${nixpkgsConfig} = lib.mkOption {
           type = self.lib.type.nixpkgs.config;
+          description = "Nixpkgs configuration for ${config}";
         };
         flake.${configs} = lib.mkOption {
           type = configurationType;
+          description = "Attribute set of all ${configs} in the flake";
         };
       };
 

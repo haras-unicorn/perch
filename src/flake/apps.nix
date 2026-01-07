@@ -22,6 +22,7 @@ self.lib.factory.artifactModule {
       builtins.mapAttrs (name: app: {
         type = "app";
         program = lib.getExe app;
+        meta = app.meta or { };
       }) systemApps
     ) apps;
 }
