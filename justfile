@@ -101,9 +101,15 @@ docs:
     rm -rf '{{ root }}/artifacts'
     "# Options\n\n" + \
       (open --raw \
-        (nix build --no-link --print-out-paths \
-          '{{ root }}#flake-options')) \
+        (nix build --no-link --print-out-paths --show-trace \
+          '{{ root }}#docs-options')) \
       | save -f '{{ root }}/docs/options.md'
+    "# Library\n\n" + \
+      (open --raw \
+        (nix build --no-link --print-out-paths --show-trace \
+          '{{ root }}#docs-lib')) \
+      | save -f '{{ root }}/docs/library.md'
     prettier --write '{{ root }}/docs/options.md'
+    prettier --write '{{ root }}/docs/library.md'
     cd '{{ root }}/docs'; mdbook build
     mv '{{ root }}/docs/book' '{{ root }}/artifacts'

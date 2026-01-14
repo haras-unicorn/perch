@@ -1,301 +1,609 @@
 # Library
 
-The `perch.lib` library is split by its modules.
+## artifacts.make
 
-## Artifacts
+Build a system-indexed set of “artifacts” from flake modules.
 
-- `perch.lib.artifacts.make`:
+This evaluates each module for one or more target systems (based on its
+`${nixpkgsConfig}` settings, or a default set), then extracts the requested
+`${config}` value into an output shaped like:
 
-  ```text
-    {
-      specialArgs,
-      flakeModules,
-      nixpkgs,
-      nixpkgsConfig,
-      config,
-      defaultConfig,
-    } -> {
-      "systems...": {
-        "default or names...": "<<artifact>>"
-      }
-    }
-  ```
+- `result.<system>.<module> = <value>`
+- and, when a module marks itself as default via `${defaultConfig}`, also:
+  `result.<system>.default = <value>`
 
-  Makes artifacts from provided flake modules and config attributes.
+This is useful for producing flake outputs like per-system packages/apps/checks
+from a shared module collection, while still supporting a clean per-system
+`default`.
 
-## Attrset
+_Type:_
 
-- `perch.lib.attrset.removeAttrByPath`:
+```text
+{
+  # Name of the config field to extract as the artifact value (supports top-level or `config.<name>`).
+  config: string,
 
-  ```text
-  [string]: ?: ?
-  ```
+  # Config flag name that marks an artifact as the per-system default.
+  defaultConfig: string,
 
-  Removes provided path from attrset.
+  # Attrset of flake modules to evaluate and extract artifacts from (keyed by module name).
+  flakeModules: attribute set of module,
 
-- `perch.lib.attrset.removeAttrsByPath`
+  # Path to a nixpkgs input, used to instantiate `pkgs` for each target system.
+  nixpkgs: absolute path,
 
-  ```text
-  [[string]]: ?: ?
-  ```
+  # Name of the config field that describes nixpkgs settings for a module (especially the target `system`/systems).
+  # If a module doesn’t specify it, default systems are used.
+  #
+  nixpkgsConfig: string,
 
-  Removes provided paths from attrset.
+  # Extra args used during module evaluation (passed through like `specialArgs`).
+  specialArgs: attribute set,
 
-- `perch.lib.attrset.keepAttrByPath`
+  ...
+} -> attribute set
+```
 
-  ```text
-  [string]: ?: ?
-  ```
+## attrset.keepAttrByPath
 
-  Keeps only provided path in attrset.
+Keep only the nested attribute specified by a path, returning a minimal attrset
+(or empty if missing).
 
-- `perch.lib.attrset.keepAttrsByPath`
+_Type:_
+`list of string -> attribute set of raw value -> attribute set of raw value`
 
-  ```text
-  [[string]]: ?: ?
-  ```
+## attrset.keepAttrsByPath
 
-  Keeps only provided paths in attrset.
+Keep only the nested attributes specified by a list of paths, merging the kept
+results into one attrset.
 
-## Configurations
+_Type:_
+`list of list of string -> attribute set of raw value -> attribute set of raw value`
 
-- `perch.lib.configurations.make`:
+## attrset.removeAttrByPath
 
-  ```text
-  {
-    specialArgs,
-    flakeModules,
-    nixpkgs,
-    nixpkgsConfig,
-    config,
-    defaultConfig,
-  } -> {
-    "${name}-${system}" = "<<nixos configuration>>"
-  }
-  ```
+Remove a nested attribute specified by a path from an attrset.
 
-  Makes NixOS configurations from provided flake modules and config attributes.
+_Type:_
+`list of string -> attribute set of raw value -> attribute set of raw value`
 
-## Debug
+## attrset.removeAttrsByPath
 
-- `perch.lib.debug.trace`:
+Remove multiple nested attributes specified by a list of paths from an attrset.
 
-  ```text
-  ?: ?
-  ```
+_Type:_
+`list of list of string -> attribute set of raw value -> attribute set of raw value`
 
-  Prints the value in JSON and returns it.
+## configurations.make
 
-## Defaults
+Build NixOS configurations from flake modules, across one or more target
+systems.
 
-- `perch.lib.defaults.systems`:
+For each module that provides `${config}`, this evaluates a `lib.nixosSystem`
+using the module’s `${nixpkgsConfig}` (or Perch’s default systems) and returns
+an attrset of configurations keyed like:
 
-  ```text
-  [string]
-  ```
+- `${module}-${system}` = the resulting `nixosSystem`
+- and, when a module marks itself as default via `${defaultConfig}`:
+  `default-${system}` = that same configuration
 
-  The default systems.
+This is useful when you want a module-driven way to generate
+`nixosConfigurations` (including per-system defaults) without manually writing
+one `nixosSystem` per host/system combo.
 
-## Eval
-
-- `perch.lib.eval.filter`:
+_Type:_
 
-  ```text
-  specialArgs: filterModule: modules:
-  ```
-
-  Filters `modules: attrset of module` based on the
-  `filterModule: ([options] [config]) -> bool` predicate during eval.
-
-- `perch.lib.eval.flake`:
-
-  ```text
-  specialArgs: inputModules: selfModules: flake
-  ```
-
-  Evaluates a flake based on `inputModules: [module]` and
-  `selfModules: attrset of module`.
-
-## Factory
-
-- `perch.lib.factory.submoduleModule`:
-
-  ```text
-  {
-    flakeModules,
-    specialArgs,
-    superConfig,
-    superOptions,
-    config,
-    configs ? "${config}s",
-    submoduleType ? lib.types.attrsOf lib.types.raw,
-    mapSubmodules ? _: _,
-    mapConfig ? _: _: _,
-    mapOptions ? _: _,
-  } -> module result
-  ```
-
-  Creates a submodules options and config from the provided flake modules and
-  config attrs.
-
-- `perch.lib.factory.artifactModule`
-
-  ```text
-  {
-    flakeModules,
-    specialArgs,
-    superConfig,
-    superOptions,
-    nixpkgs,
-    nixpkgsConfig,
-    config,
-    configs ? "${config}s",
-    artifactType ? lib.types.attrsOf (lib.types.attrsOf lib.types.raw),
-    mapArtifacts ? (_: _),
-    mapConfig ? _: _: _,
-    mapOptions ? _: _,
-  } -> module result
-  ```
-
-  Creates an artifacts options and config from the provided flake modules and
-  config attrs.
-
-- `perch.lib.factory.configurationModule`
-
-  ```text
-  {
-    flakeModules,
-    specialArgs,
-    superConfig,
-    superOptions,
-    nixpkgs,
-    nixpkgsConfig,
-    config,
-    configs ? "${config}s",
-    configurationType ? lib.types.attrsOf lib.types.raw,
-    mapConfigurations ? (_: _),
-    mapConfig ? _: _: _,
-    mapOptions ? _: _,
-  } -> module result
-  ```
+```text
+{
+  # Name of the config field that contains the NixOS module (or module-like value) to feed into `lib.nixosSystem`.
+  # Modules may provide it either as a top-level `${config}` or as `config.${config}`.
+  #
+  config: string,
 
-  Creates a NixOS configurations options and config from the provided flake
-  modules and config attrs.
-
-## Flake
+  # Config flag name that marks a configuration as the default for its system (emits `default-<system>`).
+  defaultConfig: string,
 
-- `perch.lib.flake.make`
+  # Attrset of flake modules to turn into NixOS configurations (keyed by module name).
+  flakeModules: attribute set of module,
 
-  ```text
-  {
-    inputs,
-    root ? null,
-    prefix ? null,
-    selfModules ? { },
-    inputModules ? [ ],
-    includeInputModulesFromInputs ? true,
-    separator ? "-",
-    libPrefix ? null,
-  } -> flake
-  ```
+  # Path to a nixpkgs input used indirectly via `lib.nixosSystem` (for system-specific evaluation).
+  nixpkgs: absolute path,
 
-  Creates a flake based on the provided inputs and root/prefix or selfModules.
-  Evaluates modules with the `libPrefix` first if provided.
+  # Name of the config field that defines nixpkgs settings per module (especially the target `system`/systems).
+  # If absent, Perch’s default systems are used.
+  #
+  nixpkgsConfig: string,
 
-## Import
+  # Extra args passed through to `lib.nixosSystem` and module evaluation (like `specialArgs`).
+  specialArgs: attribute set,
 
-- `perch.lib.import.dirTo(Attrs|List|FlatAttrs)(WithMap|WithMetadata|Value|Path)`
+  ...
+} -> attribute set
+```
 
-  ```text
-  path: (mapFn?): result
-  ```
+## debug.trace
 
-  Imports a directory from `path` into attrs, list or flat attrs of values,
-  paths, raw metadata values or into anything with the provided function when
-  using the `WithMap` variant.
+Trace a JSON-renderable view of a value (functions replaced with a placeholder)
+and return the original value.
 
-## Lib
+_Type:_ `raw value -> raw value`
 
-Contains the `flake.lib` option definition.
+## docs.function
 
-## Module
+Attach documentation (and optional runtime assertions) to a function.
 
-- `perch.lib.module.patch`
+_Type:_
 
-  ```text
-  mapArgsDeclaration: mapArgsDefinition: mapResult: module: module
-  ```
+```text
+{
+  # Whether the function argument/result will be asserted
+  asserted: (boolean or one of "argument", "result"),
 
-  Patches a modules result, arguments declarations (if function) and argument
-  definitions (if function). It does this on the module and all of its imports
-  recursively.
+  # Function description
+  description: string,
 
-## String
+  # Function type
+  type: optionType,
 
-- `perch.lib.string.capitalize`
+  ...
+} -> function -> function
+```
 
-  ```text
-  string: string
-  ```
+## docs.libFunctionsMarkdown
 
-  Capitalizes the string turning the first letter uppercase.
+Render docs for a library attrset as markdown.
 
-## Submodules
+Hides `_module.*` options and strips `declarations`.
 
-- `perch.lib.submodules.make`
+_Type:_
 
-  ```text
-  {
-    flakeModules,
-    specialArgs,
-    config,
-    defaultConfig,
-  } -> {
-    "module names..." = "<<module>>"
-  }
-  ```
+```text
+{
+  # The library attrset to document (e.g. nixpkgs `lib`).
+  lib: raw value,
 
-  Makes modules from provided flake modules and config attributes.
+  # A `pkgs` set providing `nixosOptionsDoc`.
+  pkgs: raw value,
 
-## Trivial
+  # Special args passed to `evalModules`.
+  specialArgs: attribute set,
 
-- `perch.lib.trivial.mapFunctionResult`
+  ...
+} -> string
+```
 
-  ```text
-  mapResult: function: function
-  ```
+## docs.moduleOptionsMarkdown
 
-  Maps the function result using the provided function.
+Render module options docs as markdown.
 
-- `perch.lib.trivial.mapFunctionArgs`
+It also hides `_module.*` options and strips `declarations` for cleaner output.
 
-  ```text
-  mapArgsDeclaration: mapArgsDefinition: function: function
-  ```
+_Type:_
 
-  Maps the function argument declaration and argument definition using the
-  provided function.
+```text
+{
+  # Modules to evaluate and document.
+  modules: list of module,
 
-- `perch.lib.trivial.importIfPath`
+  # A `pkgs` set providing `nixosOptionsDoc`.
+  pkgs: raw value,
 
-  ```text
-  module: module
-  ```
+  # Special args passed to `lib.evalModules`.
+  specialArgs: attribute set,
 
-  If the module is a path, imports it and returns it, otherwise it just returns
-  it.
+  ...
+} -> string
+```
 
-- `perch.lib.trivial.mapAttrsetImports`
+## eval.filter
 
-  ```text
-  mapImported: attrset: attrset
-  ```
+Given an attrset of modules, evaluate each one in isolation (capturing its
+produced config/options), then run a predicate (filterModule) to decide which
+modules to keep. Returns a new attrset containing only the modules that passed
+the predicate.
 
-  Maps all `imports` attrs in an attrset recursively using the provided
-  function.
+_Type:_
+`attribute set -> raw value -> raw value -> boolean -> attribute set -> attribute set`
 
-## Type
+## eval.flake
 
-- `perch.lib.type.overlay`: `type` - Overlay type
+Two-stage flake module evaluation.
 
-- `perch.lib.type.nixpkgs.config`: `type` - Nixpkgs config type
+Stage 1: evaluate to discover policy (allowed args + which config paths are
+public/private). Stage 2: re-evaluate with arg filtering and config path
+filtering applied, and produce `flake.modules` suitable for consumption by other
+flakes (including a generated `default` module).
+
+_Type:_
+`attribute set -> list of module -> attribute set of module -> raw value`
+
+## eval.flakeEvalModule
+
+Internal module that defines the options used by `flake.lib.eval.flake` to
+control what is considered public/private config, and which `_module.args` are
+allowed through during evaluation. Exposed as a function only to satisfy
+module/type expectations during evaluation.
+
+_Type:_ `attribute set -> attribute set`
+
+## eval.preEval
+
+Evaluate a set of modules with an extra “eval module” prepended, after first
+patching each module so it only receives the args it explicitly requests. This
+is mainly used as a safe pre-pass for flake module evaluation where we want to
+avoid accidental arg leakage.
+
+_Type:_ `attribute set -> module -> list of module -> raw value`
+
+## factory.artifactModule
+
+Factory for building a Perch “module type” that generates per-system artifacts
+and exposes them in `flake.<configs>`.
+
+You provide `${config}` plus how to interpret `${nixpkgsConfig}`, and it
+produces a module that:
+
+- lets modules define a `${config}` value and nixpkgs settings for it
+- collects the evaluated results into `flake.<configs>` (typically keyed by
+  system, with optional per-system defaults)
+- offers mapping hooks to tweak the resulting artifacts and the exposed
+  options/config shape
+
+_Type:_
+
+```text
+{
+  # Option type for `flake.${configs}` (usually system -> name -> value).
+  artifactType: raw value,
+
+  # Name of the field to extract as the artifact value.
+  config: string,
+
+  # Plural name used under `flake.<configs>`.
+  configs: string,
+
+  # All flake modules to evaluate artifacts from.
+  flakeModules: attribute set of module,
+
+  # Hook to post-process the computed artifacts.
+  mapArtifacts: raw value -> raw value,
+
+  # Hook to post-process final `config` (gets artifacts, then base config).
+  mapConfig: raw value -> raw value -> raw value,
+
+  # Hook to post-process generated `options`.
+  mapOptions: raw value -> raw value,
+
+  # nixpkgs input/path used to instantiate `pkgs` per system.
+  nixpkgs: absolute path,
+
+  # Name of the config field that carries nixpkgs/system settings.
+  nixpkgsConfig: string,
+
+  # Extra args for evaluation (extended with `super.*`).
+  specialArgs: attribute set,
+
+  # Exposed as `super.config`.
+  superConfig: raw value,
+
+  # Exposed as `super.options`.
+  superOptions: raw value,
+
+  ...
+} -> module
+```
+
+## factory.configurationModule
+
+Factory for building a Perch “module type” that produces NixOS configurations
+and exposes them in `flake.<configs>`.
+
+You provide `${config}` plus `${nixpkgsConfig}`, and it produces a module that:
+
+- lets modules define the NixOS module/configuration for `${config}` (and
+  optionally mark a default)
+- evaluates them into real `nixosSystem` results across the intended systems
+- publishes the final set under `flake.<configs>`, with hooks for reshaping
+  options/config and post-processing the result
+
+_Type:_
+
+```text
+{
+  # Name of the field that provides the NixOS module/configuration to build.
+  config: string,
+
+  # Plural name used under `flake.<configs>`.
+  configs: string,
+
+  # Option type for `flake.${configs}` (module-system keys -> nixosSystem results).
+  configurationType: raw value,
+
+  # All flake modules to evaluate into NixOS configurations.
+  flakeModules: attribute set of module,
+
+  # Hook to post-process final `config` (gets configurations, then base config).
+  mapConfig: raw value -> raw value -> raw value,
+
+  # Hook to post-process the computed configurations.
+  mapConfigurations: raw value -> raw value,
+
+  # Hook to post-process generated `options`.
+  mapOptions: raw value -> raw value,
+
+  # nixpkgs input/path used for system-specific evaluation.
+  nixpkgs: absolute path,
+
+  # Name of the config field that carries nixpkgs/system settings.
+  nixpkgsConfig: string,
+
+  # Extra args for evaluation (extended with `super.*`).
+  specialArgs: attribute set,
+
+  # Exposed as `super.config`.
+  superConfig: raw value,
+
+  # Exposed as `super.options`.
+  superOptions: raw value,
+
+  ...
+} -> module
+```
+
+## factory.submoduleModule
+
+Factory for building a Perch “module type” that collects and exposes submodules
+in `flake.<configs>`.
+
+You tell it which `${config}` you’re defining, and it produces a module that:
+
+- lets individual modules declare `${config}` (and optionally mark themselves as
+  the default)
+- aggregates all of them into `flake.<configs>` for the whole flake
+- supports light customization hooks (`mapSubmodules`/`mapOptions`/`mapConfig`)
+  so you can shape the API without rewriting the plumbing
+
+_Type:_
+
+```text
+{
+  # Singular name of the thing being collected (e.g. "overlay").
+  config: string,
+
+  # Plural name used under `flake.<configs>`.
+  configs: string,
+
+  # All flake modules to scan/collect submodules from.
+  flakeModules: attribute set of module,
+
+  # Hook to post-process final `config` (gets submodules, then base config).
+  mapConfig: raw value -> raw value -> raw value,
+
+  # Hook to post-process generated `options`.
+  mapOptions: raw value -> raw value,
+
+  # Hook to post-process the collected submodules set.
+  mapSubmodules: raw value -> raw value,
+
+  # Extra args for evaluation (extended with `super.config`/`super.options`).
+  specialArgs: attribute set,
+
+  # Option type for `flake.${configs}`.
+  submoduleType: raw value,
+
+  # Parent config exposed to submodules as `super.config`.
+  superConfig: raw value,
+
+  # Parent options exposed to submodules as `super.options`.
+  superOptions: raw value,
+
+  ...
+} -> module
+```
+
+## flake.make
+
+Build a “flake output” attrset by collecting modules, evaluating them with
+Perch’s flake evaluator, and returning `config.flake` from the result.
+
+It can:
+
+- load modules from a directory on disk (via `root` + `prefix`)
+- take explicit modules you pass in (`selfModules`, `inputModules`)
+- optionally include `modules.default` from your flake inputs
+- (optionally) do a small bootstrapping step (`libPrefix`) so `self.lib` can be
+  provided by modules themselves
+
+_Type:_
+
+```text
+{
+  # Whether to automatically include `modules.default` from each flake input (excluding `self`),
+  # when that input provides it.
+  # Disable this if you want full manual control over which input modules participate.
+  #
+  includeInputModulesFromInputs: boolean,
+
+  # Extra modules to include during evaluation (in addition to `selfModules` and any modules discovered from `root/prefix`).
+  # This is a list, since ordering can matter for module composition.
+  #
+  inputModules: list of raw value,
+
+  # Flake inputs attrset (typically the `inputs` from your `outputs = { ... }:` function).
+  # Used as `specialArgs` during evaluation, and also scanned for `modules.default` when enabled.
+  #
+  inputs: attribute set,
+
+  # Optional bootstrapping mode for flakes that define their own `self.lib` via modules.
+  #
+  # When set, Perch first evaluates only modules whose names start with `libPrefix` to obtain `config.flake.lib`,
+  # then re-evaluates the full module set with that `self.lib` injected into `specialArgs`.
+  # Leave as `null` for normal operation.
+  #
+  libPrefix: null or string,
+
+  # Subdirectory (relative to `root`) to scan for modules.
+  # Only used when both `root` and `prefix` are non-null.
+  #
+  prefix: null or string,
+
+  # Root path for discovering modules on disk. When combined with `prefix`, Perch will import modules
+  # from `root/prefix` using `flake.lib.import`.
+  # Set to `null` to disable directory-based module discovery.
+  #
+  root: null or absolute path,
+
+  # Modules belonging to this flake.
+  #
+  # You can pass either:
+  # - an attrset `{ name = module; ... }` (recommended), or
+  # - a list of modules (they will be named `module-0`, `module-1`, ...).
+  #
+  # Each module is patched to have a stable `key` corresponding to its name.
+  #
+  selfModules: attribute set of raw value,
+
+  # Separator used when generating names for modules discovered on disk (via `root/prefix`).
+  # These names become keys in the “flat” module attrset (for example: `foo-bar-baz`).
+  #
+  separator: string,
+
+  ...
+} -> attribute set
+```
+
+## format.optionsToArgsString
+
+Converts evaluated options to a human-friendly string useful for function
+arguments
+
+_Type:_ `raw value -> raw value`
+
+## glob.toRegex
+
+Convert a glob pattern to a fully-anchored regular expression string.
+
+_Type:_ `string -> string`
+
+## module.patch
+
+Patch a module (or module path) by rewriting its function args
+declaration/values and mapping its resulting attrset, recursively applying the
+same patch to any imported modules.
+
+_Type:_ `raw value -> raw value -> raw value -> raw value -> raw value`
+
+## options.flatten
+
+Flatten an evaluated NixOS-style options tree into a sorted list.
+
+_Type:_ `raw value -> list of raw value`
+
+## options.toMarkdown
+
+Render an evaluated options tree into a simple markdown document.
+
+For each option, produces:
+
+## <option name>
+
+<option description>
+
+_Type:_
+
+- If single-line: `<type>`
+- If multi-line: fenced ```text block
+
+(_Default:_ <default>) # only when a default exists
+
+_Type:_
+
+```text
+{
+  # Evaluated options tree to render.
+  options: raw value,
+
+  # Transform options with a mapper function.
+  transformOptions: raw value -> raw value,
+
+  ...
+}
+```
+
+## string.capitalize
+
+Capitalize the first character of a string (leaving the rest unchanged).
+
+_Type:_ `string -> string`
+
+## submodules.make
+
+Create a ready-to-use attrset of submodules from a set of flake modules.
+
+You pick which config field you want to expose (via `config`), and this function
+returns only the modules that provide it, plus a sensible `default` module. This
+is useful for turning a large flake module collection into a small, clean
+“module API” other code can consume.
+
+_Type:_
+
+```text
+{
+  # Which config field to extract from each module (e.g. `nixosConfigurations`, `packages`, etc.).
+  config: string,
+
+  # Config flag name used to choose the default module; if none is marked, a default is generated.
+  defaultConfig: string,
+
+  # Candidate flake modules to turn into submodules (keyed by name).
+  flakeModules: attribute set of module,
+
+  # Extra args used during evaluation (like `specialArgs` in `lib.evalModules`).
+  specialArgs: attribute set,
+
+  ...
+} -> attribute set of module
+```
+
+## trivial.importIfPath
+
+If given a path/string, import it and attach {\_file,key}; otherwise pass
+through the module and still attach those when possible.
+
+_Type:_ `raw value -> raw value`
+
+## trivial.isFunctor
+
+Return true if a value is a functor attrset (has a functional \_\_functor
+field).
+
+_Type:_ `raw value -> boolean`
+
+## trivial.mapAttrsetImports
+
+If an attrset has an imports list, map a function over the imported modules
+(importing paths/strings first).
+
+_Type:_ `raw value -> raw value -> raw value -> raw value`
+
+## trivial.mapFunctionArgs
+
+Wrap a function to rewrite its argument declaration and argument value before
+calling it.
+
+_Type:_
+`raw value -> raw value -> raw value -> raw value -> raw value -> raw value`
+
+## trivial.mapFunctionResult
+
+Wrap a function so its result is transformed by a mapper while preserving
+declared function arguments.
+
+_Type:_ `raw value -> raw value -> raw value -> raw value -> raw value`
+
+## trivial.toFunctor
+
+Convert a function to a functor attrset (or pass through an existing functor),
+throwing on other values.
+
+_Type:_ `raw value -> raw value`
