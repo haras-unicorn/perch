@@ -1,4 +1,4 @@
-{ self, ... }:
+{ self, lib, ... }:
 
 let
   removeAttrByPath =
@@ -45,13 +45,13 @@ let
         { };
 
   recursiveMerge =
-    a: b:
+    lhs: rhs:
     let
-      keys = builtins.attrNames a ++ builtins.attrNames b;
+      keys = builtins.attrNames lhs ++ builtins.attrNames rhs;
       uniq = builtins.listToAttrs (
         builtins.map
-          (k: {
-            name = k;
+          (key: {
+            name = key;
             value = null;
           })
           (
@@ -66,25 +66,58 @@ let
           )
       );
       mergeKey =
-        k:
-        if (a ? ${k}) && (b ? ${k}) then
-          if builtins.isAttrs a.${k} && builtins.isAttrs b.${k} then recursiveMerge a.${k} b.${k} else b.${k}
-        else if a ? ${k} then
-          a.${k}
+        key:
+        if (lhs ? ${key}) && (rhs ? ${key}) then
+          if builtins.isAttrs lhs.${key} && builtins.isAttrs rhs.${key} then
+            recursiveMerge lhs.${key} rhs.${key}
+          else
+            rhs.${key}
+        else if lhs ? ${key} then
+          lhs.${key}
         else
-          b.${k};
+          rhs.${key};
     in
-    builtins.mapAttrs (k: _: mergeKey k) uniq;
+    builtins.mapAttrs (key: _: mergeKey key) uniq;
 
   keepAttrsByPath =
     paths: attrs: builtins.foldl' (acc: path: recursiveMerge acc (keepAttrByPath path attrs)) { } paths;
 in
 {
-  flake.lib.attrset.removeAttrByPath = removeAttrByPath;
+  flake.lib.attrset.removeAttrByPath = self.lib.docs.function {
+    description = ''
+      Remove a nested attribute specified by a path from an attrset.
+    '';
+    type = self.lib.types.function (lib.types.listOf lib.types.str) (
+      self.lib.types.function (lib.types.attrsOf lib.types.raw) (lib.types.attrsOf lib.types.raw)
+    );
+  } removeAttrByPath;
 
-  flake.lib.attrset.removeAttrsByPath = removeAttrsByPath;
+  flake.lib.attrset.removeAttrsByPath = self.lib.docs.function {
+    description = ''
+      Remove multiple nested attributes specified by a list of paths from an attrset.
+    '';
+    type = self.lib.types.function (lib.types.listOf (lib.types.listOf lib.types.str)) (
+      self.lib.types.function (lib.types.attrsOf lib.types.raw) (lib.types.attrsOf lib.types.raw)
+    );
+  } removeAttrsByPath;
 
-  flake.lib.attrset.keepAttrByPath = keepAttrByPath;
+  flake.lib.attrset.keepAttrByPath = self.lib.docs.function {
+    description = ''
+      Keep only the nested attribute specified by a path,
+      returning a minimal attrset (or empty if missing).
+    '';
+    type = self.lib.types.function (lib.types.listOf lib.types.str) (
+      self.lib.types.function (lib.types.attrsOf lib.types.raw) (lib.types.attrsOf lib.types.raw)
+    );
+  } keepAttrByPath;
 
-  flake.lib.attrset.keepAttrsByPath = keepAttrsByPath;
+  flake.lib.attrset.keepAttrsByPath = self.lib.docs.function {
+    description = ''
+      Keep only the nested attributes specified by a list of paths,
+      merging the kept results into one attrset.
+    '';
+    type = self.lib.types.function (lib.types.listOf (lib.types.listOf lib.types.str)) (
+      self.lib.types.function (lib.types.attrsOf lib.types.raw) (lib.types.attrsOf lib.types.raw)
+    );
+  } keepAttrsByPath;
 }

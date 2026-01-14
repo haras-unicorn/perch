@@ -6,173 +6,246 @@
 
 {
   flake.lib.configurations.make =
-    {
-      specialArgs,
-      flakeModules,
-      nixpkgs,
-      nixpkgsConfig,
-      config,
-      defaultConfig,
-    }:
-    let
-      nixpkgsModules = builtins.mapAttrs (
-        module:
-        self.lib.module.patch (_: args: args) (_: args: args) (
-          _: result:
-          let
-            exists = result ? ${config} || (result ? config && result.config ? ${config});
+    self.lib.docs.function
+      {
+        description = ''
+          Build NixOS configurations from flake modules,
+          across one or more target systems.
 
-            nixpkgs =
-              if result ? ${nixpkgsConfig} then
-                result.${nixpkgsConfig}
-              else if result ? config && result.config ? ${nixpkgsConfig} then
-                result.config.${nixpkgsConfig}
-              else
-                { };
+          For each module that provides "config",
+          this evaluates a "lib.nixosSystem" using the module’s "nixpkgsConfig"
+          (or default systems) and returns an attrset
+          of configurations keyed like: "<module>-<system>".
 
-            systems =
-              if !(exists) then
-                [ ]
-              else if nixpkgs ? system then
-                if builtins.isList nixpkgs.system then nixpkgs.system else [ nixpkgs.system ]
-              else
-                self.lib.defaults.systems;
-
-            configs = builtins.map (system: nixpkgs // { inherit system; }) systems;
-          in
+          This is useful when you want a module-driven way to generate
+          "nixosConfigurations" (including per-system defaults)
+          without manually writing one "nixosSystem" per host/system combo.
+        '';
+        type = self.lib.types.function (self.lib.types.args (
+          { lib, ... }:
           {
-            nixpkgs.${module} = configs;
+            options = {
+              specialArgs = lib.mkOption {
+                type = lib.types.attrs;
+                description = ''
+                  Extra args passed through to "lib.nixosSystem" and
+                  module evaluation (like "specialArgs").
+                '';
+              };
+
+              flakeModules = lib.mkOption {
+                type = lib.types.attrsOf lib.types.deferredModule;
+                description = ''
+                  Attrset of flake modules to turn into NixOS configurations
+                  (keyed by module name).
+                '';
+              };
+
+              nixpkgs = lib.mkOption {
+                type = lib.types.path;
+                description = ''
+                  Path to a nixpkgs input used indirectly via "lib.nixosSystem"
+                  (for system-specific evaluation).
+                '';
+              };
+
+              nixpkgsConfig = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Name of the config field that defines nixpkgs settings per module
+                  (especially the target "system"/systems).
+                  If absent, default systems are used.
+                '';
+              };
+
+              config = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Name of the config field that contains the NixOS module
+                  (or module-like value) to feed into "lib.nixosSystem".
+                '';
+              };
+
+              defaultConfig = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Config flag name that marks a configuration as the default
+                  for its system (emits "default-<system>").
+                '';
+              };
+            };
           }
-        )
-      ) flakeModules;
-
-      nixpkgsEval = lib.evalModules {
-        inherit specialArgs;
-        modules = (builtins.attrValues nixpkgsModules) ++ [
-          (
-            { lib, ... }:
-            {
-              options.nixpkgs = lib.mkOption {
-                type = lib.types.attrsOf (lib.types.listOf self.lib.type.nixpkgs.config);
-                default = { };
-              };
-              config._module.args = {
-                inherit flakeModules;
-                pkgs = null;
-              };
-            }
-          )
-        ];
-      };
-
-      modules = builtins.mapAttrs (
-        module:
-        self.lib.module.patch (_: args: args) (_: args: args) (
-          _: result:
-          let
-            value =
-              if result ? ${config} then
-                result.${config}
-              else if result ? config && result.config ? ${config} then
-                result.config.${config}
-              else
-                null;
-
-            default =
-              if result ? ${defaultConfig} then
-                result.${defaultConfig}
-              else if result ? config && result.config ? ${defaultConfig} then
-                result.config.${defaultConfig}
-              else
-                false;
-          in
-          if value == null then
-            null
-          else if value ? config || value ? options then
-            value
-            // {
-              config = value.config // {
-                __perch_default = default;
-              };
-            }
-          else
-            value
-            // {
-              __perch_default = default;
-            }
-        )
-      ) flakeModules;
-
-      configurations = lib.flatten (
-        builtins.attrValues (
-          builtins.mapAttrs (
-            module: configs:
-            builtins.map (
-              conf:
+        )) lib.types.attrs;
+      }
+      (
+        {
+          specialArgs,
+          flakeModules,
+          nixpkgs,
+          nixpkgsConfig,
+          config,
+          defaultConfig,
+        }:
+        let
+          nixpkgsModules = builtins.mapAttrs (
+            module:
+            self.lib.module.patch (_: args: args) (_: args: args) (
+              _: result:
               let
-                eval = lib.nixosSystem {
-                  inherit specialArgs;
-                  system = conf.system;
-                  modules = [
-                    (
-                      { lib, ... }:
-                      {
-                        options.__perch_default = lib.mkOption {
-                          type = lib.types.bool;
-                          default = false;
-                        };
+                exists = result ? ${config} || (result ? config && result.config ? ${config});
 
-                        config.nixpkgs = conf;
+                nixpkgs =
+                  if result ? ${nixpkgsConfig} then
+                    result.${nixpkgsConfig}
+                  else if result ? config && result.config ? ${nixpkgsConfig} then
+                    result.config.${nixpkgsConfig}
+                  else
+                    { };
 
-                        config._module.args = {
-                          inherit flakeModules;
-                        };
-                      }
-                    )
-                    modules.${module}
-                  ];
-                };
+                systems =
+                  if !(exists) then
+                    [ ]
+                  else if nixpkgs ? system then
+                    if builtins.isList nixpkgs.system then nixpkgs.system else [ nixpkgs.system ]
+                  else
+                    self.lib.defaults.systems;
+
+                configs = builtins.map (system: nixpkgs // { inherit system; }) systems;
               in
               {
-                inherit module;
-                system = conf.system;
-                value = eval;
-                default = eval.config.__perch_default;
+                nixpkgs.${module} = configs;
               }
-            ) configs
-          ) nixpkgsEval.config.nixpkgs
+            )
+          ) flakeModules;
+
+          nixpkgsEval = lib.evalModules {
+            inherit specialArgs;
+            modules = (builtins.attrValues nixpkgsModules) ++ [
+              (
+                { lib, ... }:
+                {
+                  options.nixpkgs = lib.mkOption {
+                    type = lib.types.attrsOf (lib.types.listOf self.lib.types.nixpkgsConfig);
+                    default = { };
+                  };
+                  config._module.args = {
+                    inherit flakeModules;
+                    pkgs = null;
+                  };
+                }
+              )
+            ];
+          };
+
+          modules = builtins.mapAttrs (
+            module:
+            self.lib.module.patch (_: args: args) (_: args: args) (
+              _: result:
+              let
+                value =
+                  if result ? ${config} then
+                    result.${config}
+                  else if result ? config && result.config ? ${config} then
+                    result.config.${config}
+                  else
+                    null;
+
+                default =
+                  if result ? ${defaultConfig} then
+                    result.${defaultConfig}
+                  else if result ? config && result.config ? ${defaultConfig} then
+                    result.config.${defaultConfig}
+                  else
+                    false;
+              in
+              if value == null then
+                null
+              else if value ? config || value ? options then
+                value
+                // {
+                  config = value.config // {
+                    __perch_default = default;
+                  };
+                }
+              else
+                value
+                // {
+                  __perch_default = default;
+                }
+            )
+          ) flakeModules;
+
+          configurations = lib.flatten (
+            builtins.attrValues (
+              builtins.mapAttrs (
+                module: configs:
+                builtins.map (
+                  conf:
+                  let
+                    eval = lib.nixosSystem {
+                      inherit specialArgs;
+                      system = conf.system;
+                      modules = [
+                        (
+                          { lib, ... }:
+                          {
+                            options.__perch_default = lib.mkOption {
+                              type = lib.types.bool;
+                              default = false;
+                            };
+
+                            config.nixpkgs = conf;
+
+                            config._module.args = {
+                              inherit flakeModules;
+                            };
+                          }
+                        )
+                        modules.${module}
+                      ];
+                    };
+                  in
+                  {
+                    inherit module;
+                    system = conf.system;
+                    value = eval;
+                    default = eval.config.__perch_default;
+                  }
+                ) configs
+              ) nixpkgsEval.config.nixpkgs
+            )
+          );
+        in
+        builtins.listToAttrs (
+          lib.flatten (
+            builtins.map (
+              {
+                module,
+                system,
+                value,
+                default,
+                ...
+              }:
+              if default then
+                [
+                  {
+                    inherit value;
+                    name = "${module}-${system}";
+                  }
+                  {
+                    inherit value;
+                    name = "default-${system}";
+                  }
+                ]
+              else
+                [
+                  {
+                    inherit value;
+                    name = "${module}-${system}";
+                  }
+                ]
+            ) configurations
+          )
         )
       );
-    in
-    builtins.listToAttrs (
-      lib.flatten (
-        builtins.map (
-          {
-            module,
-            system,
-            value,
-            default,
-            ...
-          }:
-          if default then
-            [
-              {
-                inherit value;
-                name = "${module}-${system}";
-              }
-              {
-                inherit value;
-                name = "default-${system}";
-              }
-            ]
-          else
-            [
-              {
-                inherit value;
-                name = "${module}-${system}";
-              }
-            ]
-        ) configurations
-      )
-    );
 }

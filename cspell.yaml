@@ -38,3 +38,10 @@ words:
   - beforementioned
   - abovementioned
   - stdenv
+  - renderable
+  - suboption
+  - nums
+  - ints
+  - starstar
+  - qmark
+  - functors

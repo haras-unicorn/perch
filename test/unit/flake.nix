@@ -25,16 +25,26 @@
           eval = lib.evalModules {
             specialArgs = specialArgs;
             class = "flake";
-            modules = builtins.attrValues (
-              lib.filterAttrs (name: _: lib.hasPrefix "lib" name) (
-                importLib.import.dirToFlatPathAttrs "-" "${root}/src"
+            modules = builtins.map (value: value.__import.path) (
+              builtins.attrValues (
+                nixpkgs.lib.filterAttrs
+                  (name: value: (nixpkgs.lib.hasPrefix "lib" name) && (value.__import.type != "unknown"))
+                  (
+                    importLib.import.dirToFlatAttrsWithMetadata {
+                      separator = "-";
+                      dir = "${root}/src";
+                    }
+                  )
               )
             );
           };
 
           flake = eval.config.flake;
 
-          specs = importLib.import.dirToFlatValueAttrs "-" "${self}/specs";
+          specs = importLib.import.dirToFlatValueAttrs {
+            separator = "-";
+            dir = "${self}/specs";
+          };
 
           results = lib.flatten (
             builtins.map (

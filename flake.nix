@@ -34,9 +34,16 @@
       eval = nixpkgs.lib.evalModules {
         specialArgs = specialArgs;
         class = "perch";
-        modules = builtins.attrValues (
-          nixpkgs.lib.filterAttrs (name: _: nixpkgs.lib.hasPrefix "lib" name) (
-            importLib.import.dirToFlatPathAttrs "-" ./src
+        modules = builtins.map (value: value.__import.path) (
+          builtins.attrValues (
+            nixpkgs.lib.filterAttrs
+              (name: value: (nixpkgs.lib.hasPrefix "lib" name) && (value.__import.type != "unknown"))
+              (
+                importLib.import.dirToFlatAttrsWithMetadata {
+                  separator = "-";
+                  dir = ./src;
+                }
+              )
           )
         );
       };
