@@ -24,6 +24,22 @@ let
 in
 {
   flake.lib.module.patch =
-    mapArgsDeclaration: mapArgsDefinition: mapResult: module:
-    patchImported mapArgsDeclaration mapArgsDefinition mapResult (self.lib.trivial.importIfPath module);
+    self.lib.docs.function
+      {
+        description = "
+          Patch a module (or module path)
+          by rewriting its function args declaration/values
+          and mapping its resulting attrset,
+          recursively applying the same patch to any imported modules.
+        ";
+        type = self.lib.types.function lib.types.raw (
+          self.lib.types.function lib.types.raw (
+            self.lib.types.function lib.types.raw (self.lib.types.function lib.types.raw lib.types.raw)
+          )
+        );
+      }
+      (
+        mapArgsDeclaration: mapArgsDefinition: mapResult: module:
+        patchImported mapArgsDeclaration mapArgsDefinition mapResult (self.lib.trivial.importIfPath module)
+      );
 }

@@ -2,224 +2,579 @@
 
 {
   flake.lib.factory.submoduleModule =
-    {
-      flakeModules,
-      specialArgs,
-      superConfig,
-      superOptions,
-      config,
-      configs ? "${config}s",
-      submoduleType ? lib.types.attrsOf lib.types.raw,
-      mapSubmodules ? _: _,
-      mapConfig ? _: _: _,
-      mapOptions ? _: _,
-    }:
-    let
-      defaultConfig = "default${self.lib.string.capitalize config}";
+    self.lib.docs.function
+      {
+        description = ''
+          Factory for building a module that collects
+          and exposes submodules in "flake.<configs>".
 
-      submodules = mapSubmodules (
-        self.lib.submodules.make {
-          inherit
-            flakeModules
-            config
-            defaultConfig
-            ;
+          You tell it which "config" you’re defining,
+          and it produces a module that:
 
-          specialArgs = (
-            specialArgs
-            // {
-              super.config = superConfig;
-              super.options = superOptions;
+          1. lets individual modules declare "config"
+          (and optionally mark themselves as the default)
+
+          2. aggregates all of them into "flake.<configs>"" for the whole flake
+
+          3. supports light customization hooks ("mapSubmodules"/"mapOptions"/"mapConfig")
+          so you can shape the API without rewriting the plumbing
+        '';
+        type = self.lib.types.function (self.lib.types.args (
+          { config, lib, ... }:
+          {
+            options = {
+              flakeModules = lib.mkOption {
+                type = lib.types.attrsOf lib.types.deferredModule;
+                description = ''
+                  All flake modules to scan/collect submodules from.
+                '';
+              };
+
+              specialArgs = lib.mkOption {
+                type = lib.types.attrs;
+                description = ''
+                  Extra args for evaluation
+                  (extended with "super.config"/"super.options").
+                '';
+              };
+
+              superConfig = lib.mkOption {
+                type = lib.types.raw;
+                description = ''
+                  Parent config exposed to submodules as "super.config".
+                '';
+              };
+
+              superOptions = lib.mkOption {
+                type = lib.types.raw;
+                description = ''
+                  Parent options exposed to submodules as "super.options".
+                '';
+              };
+
+              config = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Singular name of the thing being collected (e.g. "overlay").
+                '';
+              };
+
+              configs = lib.mkOption {
+                type = lib.types.str;
+                default = "${config.config}s";
+                description = ''
+                  Plural name used under "flake.<configs>".
+                '';
+              };
+
+              submoduleType = lib.mkOption {
+                type = lib.types.raw;
+                default = lib.types.attrsOf lib.types.raw;
+                description = ''
+                  Option type for "flake.<configs>".
+                '';
+              };
+
+              mapSubmodules = lib.mkOption {
+                type = self.lib.types.function lib.types.raw lib.types.raw;
+                default = x: x;
+                description = ''
+                  Hook to post-process the collected submodules set.
+                '';
+              };
+
+              mapConfig = lib.mkOption {
+                type = self.lib.types.function lib.types.raw (self.lib.types.function lib.types.raw lib.types.raw);
+                default = _: base: base;
+                description = ''
+                  Hook to post-process final "config"
+                  (gets submodules, then base config).
+                '';
+              };
+
+              mapOptions = lib.mkOption {
+                type = self.lib.types.function lib.types.raw lib.types.raw;
+                default = x: x;
+                description = ''
+                  Hook to post-process generated "options".
+                '';
+              };
+            };
+          }
+        )) lib.types.deferredModule;
+      }
+      (
+        {
+          flakeModules,
+          specialArgs,
+          superConfig,
+          superOptions,
+          config,
+          configs ? "${config}s",
+          submoduleType ? lib.types.attrsOf lib.types.raw,
+          mapSubmodules ? _: _,
+          mapConfig ? _: _: _,
+          mapOptions ? _: _,
+        }:
+        let
+          defaultConfig = "default${self.lib.string.capitalize config}";
+
+          submodules = mapSubmodules (
+            self.lib.submodules.make {
+              inherit
+                flakeModules
+                config
+                defaultConfig
+                ;
+
+              specialArgs = (
+                specialArgs
+                // {
+                  super.config = superConfig;
+                  super.options = superOptions;
+                }
+              );
             }
           );
+        in
+        {
+          options = mapOptions {
+            ${defaultConfig} = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = ''
+                Whether to set this as the default ${config}
+              '';
+            };
+            ${config} = lib.mkOption {
+              type = lib.types.attrsOf lib.types.raw;
+              description = ''
+                Result of the ${config}
+              '';
+            };
+            flake.${configs} = lib.mkOption {
+              type = submoduleType;
+              description = ''
+                Attribute set of all ${configs} in the flake
+              '';
+            };
+          };
+
+          config = mapConfig submodules {
+            flake.${configs} = submodules;
+            eval.allowedArgs = [
+              "super"
+              "pkgs"
+            ];
+            eval.privateConfig = [ [ config ] ];
+            eval.publicConfig = [
+              [
+                "flake"
+                configs
+              ]
+            ];
+          };
         }
       );
-    in
-    {
-      options = mapOptions {
-        ${defaultConfig} = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Whether to set this as the default ${config}";
-        };
-        ${config} = lib.mkOption {
-          type = lib.types.attrsOf lib.types.raw;
-          description = "Result of the ${config}";
-        };
-        flake.${configs} = lib.mkOption {
-          type = submoduleType;
-          description = "Attribute set of all ${configs} in the flake";
-        };
-      };
-
-      config = mapConfig submodules {
-        flake.${configs} = submodules;
-        eval.allowedArgs = [
-          "super"
-          "pkgs"
-        ];
-        eval.privateConfig = [ [ config ] ];
-        eval.publicConfig = [
-          [
-            "flake"
-            configs
-          ]
-        ];
-      };
-    };
 
   flake.lib.factory.artifactModule =
-    {
-      flakeModules,
-      specialArgs,
-      superConfig,
-      superOptions,
-      nixpkgs,
-      nixpkgsConfig,
-      config,
-      configs ? "${config}s",
-      artifactType ? lib.types.attrsOf (lib.types.attrsOf lib.types.raw),
-      mapArtifacts ? (_: _),
-      mapConfig ? _: _: _,
-      mapOptions ? _: _,
-    }:
-    let
-      defaultConfig = "default${self.lib.string.capitalize config}";
+    self.lib.docs.function
+      {
+        description = ''
+          Factory for building a module that generates per-system artifacts
+          and exposes them in "flake.<configs>".
 
-      artifacts = mapArtifacts (
-        self.lib.artifacts.make {
-          inherit
-            flakeModules
-            nixpkgs
-            nixpkgsConfig
-            defaultConfig
-            config
-            ;
+          You provide "config" plus how to interpret "nixpkgsConfig",
+          and it produces a module that:
 
-          specialArgs = (
-            specialArgs
-            // {
-              super.config = superConfig;
-              super.options = superOptions;
+          1. lets modules define a "config" value
+          and nixpkgs settings for it
+
+          2. collects the evaluated results into "flake.<configs>""
+          (typically keyed by system, with optional per-system defaults)
+
+          3. offers mapping hooks to tweak the resulting artifacts
+          and the exposed options/config shape
+        '';
+        type = self.lib.types.function (self.lib.types.args (
+          { lib, config, ... }:
+          {
+            options = {
+              flakeModules = lib.mkOption {
+                type = lib.types.attrsOf lib.types.deferredModule;
+                description = ''
+                  All flake modules to evaluate artifacts from.
+                '';
+              };
+
+              specialArgs = lib.mkOption {
+                type = lib.types.attrs;
+                description = ''
+                  Extra args for evaluation (extended with "super.*").
+                '';
+              };
+
+              superConfig = lib.mkOption {
+                type = lib.types.raw;
+                description = ''
+                  Exposed as "super.config".
+                '';
+              };
+              superOptions = lib.mkOption {
+                type = lib.types.raw;
+                description = ''
+                  Exposed as "super.options".
+                '';
+              };
+
+              nixpkgs = lib.mkOption {
+                type = lib.types.path;
+                description = ''
+                  nixpkgs input/path used to instantiate "pkgs" per system.
+                '';
+              };
+
+              nixpkgsConfig = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Name of the config field that carries nixpkgs/system settings.
+                '';
+              };
+
+              config = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Name of the field to extract as the artifact value.
+                '';
+              };
+
+              configs = lib.mkOption {
+                type = lib.types.str;
+                default = "${config.config}s";
+                description = ''
+                  Plural name used under "flake.<configs>".
+                '';
+              };
+
+              artifactType = lib.mkOption {
+                type = lib.types.raw;
+                default = lib.types.attrsOf (lib.types.attrsOf lib.types.raw);
+                description = ''
+                  Option type for "flake.<configs>".
+                '';
+              };
+
+              mapArtifacts = lib.mkOption {
+                type = self.lib.types.function lib.types.raw lib.types.raw;
+                default = x: x;
+                description = ''
+                  Hook to post-process the computed artifacts.
+                '';
+              };
+
+              mapConfig = lib.mkOption {
+                type = self.lib.types.function lib.types.raw (self.lib.types.function lib.types.raw lib.types.raw);
+                default = _: base: base;
+                description = ''
+                  Hook to post-process final "config" (gets artifacts, then base config).
+                '';
+              };
+
+              mapOptions = lib.mkOption {
+                type = self.lib.types.function lib.types.raw lib.types.raw;
+                default = x: x;
+                description = ''
+                  Hook to post-process generated "options".
+                '';
+              };
+            };
+          }
+        )) lib.types.deferredModule;
+      }
+      (
+        {
+          flakeModules,
+          specialArgs,
+          superConfig,
+          superOptions,
+          nixpkgs,
+          nixpkgsConfig,
+          config,
+          configs ? "${config}s",
+          artifactType ? lib.types.attrsOf (lib.types.attrsOf lib.types.raw),
+          mapArtifacts ? (_: _),
+          mapConfig ? _: _: _,
+          mapOptions ? _: _,
+        }:
+        let
+          defaultConfig = "default${self.lib.string.capitalize config}";
+
+          artifacts = mapArtifacts (
+            self.lib.artifacts.make {
+              inherit
+                flakeModules
+                nixpkgs
+                nixpkgsConfig
+                defaultConfig
+                config
+                ;
+
+              specialArgs = (
+                specialArgs
+                // {
+                  super.config = superConfig;
+                  super.options = superOptions;
+                }
+              );
             }
           );
+        in
+        {
+          options = mapOptions {
+            ${defaultConfig} = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = ''
+                Whether to set this as the default ${config}
+              '';
+            };
+            ${config} = lib.mkOption {
+              type = lib.types.raw;
+              description = ''
+                The ${config}
+              '';
+            };
+            ${nixpkgsConfig} = lib.mkOption {
+              type = self.lib.types.nixpkgsConfig;
+              description = ''
+                Nixpkgs configuration for ${config}
+              '';
+            };
+            flake.${configs} = lib.mkOption {
+              type = artifactType;
+              description = ''
+                Attribute set of all ${configs} in the flake
+              '';
+            };
+          };
+
+          config = mapConfig artifacts {
+            flake.${configs} = artifacts;
+            eval.allowedArgs = [ "pkgs" ];
+            eval.privateConfig = [
+              [ nixpkgsConfig ]
+              [ config ]
+              [ defaultConfig ]
+            ];
+            eval.publicConfig = [
+              [
+                "flake"
+                configs
+              ]
+            ];
+          };
         }
       );
-    in
-    {
-      options = mapOptions {
-        ${defaultConfig} = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Whether to set this as the default ${config}";
-        };
-        ${config} = lib.mkOption {
-          type = lib.types.raw;
-          description = "The ${config}";
-        };
-        ${nixpkgsConfig} = lib.mkOption {
-          type = self.lib.type.nixpkgs.config;
-          description = "Nixpkgs configuration for ${config}";
-        };
-        flake.${configs} = lib.mkOption {
-          type = artifactType;
-          description = "Attribute set of all ${configs} in the flake";
-        };
-      };
-
-      config = mapConfig artifacts {
-        flake.${configs} = artifacts;
-        eval.allowedArgs = [ "pkgs" ];
-        eval.privateConfig = [
-          [ nixpkgsConfig ]
-          [ config ]
-          [ defaultConfig ]
-        ];
-        eval.publicConfig = [
-          [
-            "flake"
-            configs
-          ]
-        ];
-      };
-    };
 
   flake.lib.factory.configurationModule =
-    {
-      flakeModules,
-      specialArgs,
-      superConfig,
-      superOptions,
-      nixpkgs,
-      nixpkgsConfig,
-      config,
-      configs ? "${config}s",
-      configurationType ? lib.types.attrsOf lib.types.raw,
-      mapConfigurations ? (_: _),
-      mapConfig ? _: _: _,
-      mapOptions ? _: _,
-    }:
-    let
-      defaultConfig = "default${self.lib.string.capitalize config}";
+    self.lib.docs.function
+      {
+        description = ''
+          Factory for building a module that produces NixOS configurations
+          and exposes them in "flake.<configs>".
 
-      configurations = mapConfigurations (
-        self.lib.configurations.make {
-          inherit
-            flakeModules
-            nixpkgs
-            nixpkgsConfig
-            defaultConfig
-            config
-            ;
+          You provide "<config>" plus "<nixpkgsConfig>",
+          and it produces a module that:
 
-          specialArgs = (
-            specialArgs
-            // {
-              super.config = superConfig;
-              super.options = superOptions;
+          1. lets modules define the NixOS module/configuration
+          for "config" (and optionally mark a default)
+
+          2. evaluates them into real "nixosSystem" results
+          across the intended systems
+
+          3. publishes the final set under "flake.<configs>",
+          with hooks for reshaping options/config and post-processing the result
+        '';
+        type = self.lib.types.function (self.lib.types.args (
+          { lib, config, ... }:
+          {
+            options = {
+              flakeModules = lib.mkOption {
+                type = lib.types.attrsOf lib.types.deferredModule;
+                description = ''
+                  All flake modules to evaluate into NixOS configurations.
+                '';
+              };
+
+              specialArgs = lib.mkOption {
+                type = lib.types.attrs;
+                description = ''
+                  Extra args for evaluation (extended with "super.*").
+                '';
+              };
+
+              superConfig = lib.mkOption {
+                type = lib.types.raw;
+                description = ''
+                  Exposed as "super.config".
+                '';
+              };
+              superOptions = lib.mkOption {
+                type = lib.types.raw;
+                description = ''
+                  Exposed as "super.options".
+                '';
+              };
+
+              nixpkgs = lib.mkOption {
+                type = lib.types.path;
+                description = ''
+                  nixpkgs input/path used for system-specific evaluation.
+                '';
+              };
+
+              nixpkgsConfig = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Name of the config field that carries nixpkgs/system settings.
+                '';
+              };
+
+              config = lib.mkOption {
+                type = lib.types.str;
+                description = ''
+                  Name of the field that provides the NixOS module/configuration to build.
+                '';
+              };
+
+              configs = lib.mkOption {
+                type = lib.types.str;
+                default = "${config.config}s";
+                description = ''
+                  Plural name used under "flake.<configs>".
+                '';
+              };
+
+              configurationType = lib.mkOption {
+                type = lib.types.raw;
+                default = lib.types.attrsOf lib.types.raw;
+                description = ''
+                  Option type for "flake.<configs>".
+                '';
+              };
+
+              mapConfigurations = lib.mkOption {
+                type = self.lib.types.function lib.types.raw lib.types.raw;
+                default = x: x;
+                description = ''
+                  Hook to post-process the computed configurations.
+                '';
+              };
+
+              mapConfig = lib.mkOption {
+                type = self.lib.types.function lib.types.raw (self.lib.types.function lib.types.raw lib.types.raw);
+                default = _: base: base;
+                description = ''
+                  Hook to post-process final "config".
+                '';
+              };
+
+              mapOptions = lib.mkOption {
+                type = self.lib.types.function lib.types.raw lib.types.raw;
+                default = x: x;
+                description = ''
+                  Hook to post-process generated "options".
+                '';
+              };
+            };
+          }
+        )) lib.types.deferredModule;
+      }
+      (
+        {
+          flakeModules,
+          specialArgs,
+          superConfig,
+          superOptions,
+          nixpkgs,
+          nixpkgsConfig,
+          config,
+          configs ? "${config}s",
+          configurationType ? lib.types.attrsOf lib.types.raw,
+          mapConfigurations ? (_: _),
+          mapConfig ? _: _: _,
+          mapOptions ? _: _,
+        }:
+        let
+          defaultConfig = "default${self.lib.string.capitalize config}";
+
+          configurations = mapConfigurations (
+            self.lib.configurations.make {
+              inherit
+                flakeModules
+                nixpkgs
+                nixpkgsConfig
+                defaultConfig
+                config
+                ;
+
+              specialArgs = (
+                specialArgs
+                // {
+                  super.config = superConfig;
+                  super.options = superOptions;
+                }
+              );
             }
           );
+        in
+        {
+          options = mapOptions {
+            ${defaultConfig} = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = ''
+                Whether to set this as the default ${config}
+              '';
+            };
+            ${config} = lib.mkOption {
+              type = lib.types.raw;
+              description = ''
+                The module result for ${config}
+              '';
+            };
+            ${nixpkgsConfig} = lib.mkOption {
+              type = self.lib.types.nixpkgsConfig;
+              description = ''
+                Nixpkgs configuration for ${config}
+              '';
+            };
+            flake.${configs} = lib.mkOption {
+              type = configurationType;
+              description = ''
+                Attribute set of all ${configs} in the flake
+              '';
+            };
+          };
+
+          config = mapConfig configurations {
+            flake.${configs} = configurations;
+            eval.allowedArgs = [
+              "super"
+              "pkgs"
+            ];
+            eval.privateConfig = [
+              [ nixpkgsConfig ]
+              [ config ]
+              [ defaultConfig ]
+            ];
+            eval.publicConfig = [
+              [
+                "flake"
+                configs
+              ]
+            ];
+          };
         }
       );
-    in
-    {
-      options = mapOptions {
-        ${defaultConfig} = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Whether to set this as the default ${config}";
-        };
-        ${config} = lib.mkOption {
-          type = lib.types.raw;
-          description = "The module result for ${config}";
-        };
-        ${nixpkgsConfig} = lib.mkOption {
-          type = self.lib.type.nixpkgs.config;
-          description = "Nixpkgs configuration for ${config}";
-        };
-        flake.${configs} = lib.mkOption {
-          type = configurationType;
-          description = "Attribute set of all ${configs} in the flake";
-        };
-      };
-
-      config = mapConfig configurations {
-        flake.${configs} = configurations;
-        eval.allowedArgs = [
-          "super"
-          "pkgs"
-        ];
-        eval.privateConfig = [
-          [ nixpkgsConfig ]
-          [ config ]
-          [ defaultConfig ]
-        ];
-        eval.publicConfig = [
-          [
-            "flake"
-            configs
-          ]
-        ];
-      };
-    };
 }
