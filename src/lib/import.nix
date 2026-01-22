@@ -10,10 +10,11 @@ let
         importDirToAttrsWithMap: prefix:
         {
           map,
-          separator,
           dir,
+          separator ? "-",
           nameRegex ? null,
           pathRegex ? null,
+          ignoreDefaults ? false,
         }:
         builtins.listToAttrs (
           builtins.filter (x: x != null) (
@@ -67,7 +68,7 @@ let
                     value = null;
                   }
 
-              else if builtins.pathExists "${dir}/${name}/default.nix" then
+              else if !ignoreDefaults && builtins.pathExists "${dir}/${name}/default.nix" then
                 makeLeaf {
                   path = "${dir}/${name}/default.nix";
                   type = "default";
@@ -82,6 +83,7 @@ let
                       separator
                       nameRegex
                       pathRegex
+                      ignoreDefaults
                       ;
                     dir = "${dir}/${name}";
                   };
@@ -102,19 +104,22 @@ let
   importDirToListWithMap =
     {
       map,
-      separator,
       dir,
+      separator ? "-",
       nameRegex ? null,
       pathRegex ? null,
+      ignoreDefaults ? false,
     }:
     builtins.map map (
       lib.collect (builtins.hasAttr "__import") (importDirToAttrsWithMap {
+        # NOTE: identity map here because lib.collect needs the __import metadata to exist
         map = (module: module);
         inherit
           separator
           dir
           nameRegex
           pathRegex
+          ignoreDefaults
           ;
       })
     );
@@ -122,10 +127,11 @@ let
   importDirToFlatAttrsWithMap =
     {
       map,
-      separator,
       dir,
+      separator ? "-",
       nameRegex ? null,
       pathRegex ? null,
+      ignoreDefaults ? false,
     }:
     builtins.listToAttrs (
       builtins.map
@@ -140,6 +146,7 @@ let
             dir
             nameRegex
             pathRegex
+            ignoreDefaults
             ;
         })
     );
