@@ -1,178 +1,141 @@
-# `flake.lib.import` (manual docs)
+# Import library (`flake.lib.import`)
 
-This part of the library is documented a bit differently from most of the rest
-of `perch`.
+Directory-scanning import helpers used **very early** in Perch’s bootstrap (unit
+test harness, loading other lib bits from disk, etc.).
 
-## Why this is documented manually
-
-These functions are used **very early** during `perch` bootstrapping, including
-building the unit-test harness and importing other library bits from disk.
-
-That creates a small but important constraint:
-
-- In many other modules, we export functions like:
-  - `flake.lib.foo.bar = self.lib.docs.function { ... } fooBar;`
-
-- But here, referencing `self.lib` can be a problem because `self.lib` may be
-  _constructed using these very functions_.
-
-So: **circular dependency risk** 🌀 If `import` needs `self.lib` to define
-itself, you can end up with “I need me to build me” kind of recursion.
-
-**Pattern used here instead:**
-
-- Keep `flake.lib.import` as a plain attrset of functions.
-- Document the behavior and calling conventions in Markdown.
-- (Optionally later) wrap them with `self.lib.docs.function` once the library is
-  fully available, or in a later “post-bootstrap” pass.
-
-This keeps the import machinery reliable and boring (the best kind of reliable).
+Because of that, this module **must not reference `self.lib`** (circular “I need
+me to build me” risk). So it exports plain functions and is documented a bit
+more “by hand”, but in the **same style** as the rest of the library docs.
 
 ---
 
-## The mental model: one engine, three shapes
+## Mental model (shared across functions)
 
-There’s basically one core idea:
+These helpers:
 
-> Walk a directory tree, “import things that look importable”, attach metadata,
-> and then provide different views of the results.
+1. walk a directory tree (`builtins.readDir`)
+2. treat certain entries as “import leaves”
+3. attach leaf metadata under `__import`
+4. return results in one of 3 shapes:
+   - **tree attrset** (preserves directory structure)
+   - **flat list** (all leaves)
+   - **flat attrset** (all leaves keyed by generated name)
 
-You can think of it as three _shapes_ you can ask for:
+### Leaf metadata (`__import`)
 
-1. **Tree-shaped attrset** Preserves directory structure.
+Each imported/examined leaf has:
 
-2. **Flat list** Collects all “leaf imports” into a list.
+- `__import.path`: string path examined/imported
+- `__import.type`: `"regular"` (a `*.nix` file), `"default"` (a `default.nix` in
+  a dir), `"unknown"`
+- `__import.value`: imported value (or `null` for unknown)
+- `__import.name`: generated name based on nesting + `separator`
 
-3. **Flat attrset** Like the flat list, but keyed by a generated name (so you
-   can look things up by name).
+### Filtering
 
-All of them are powered by the same underlying scan logic and the same metadata
-format.
+Most entrypoints accept:
 
----
+- `nameRegex` (matches `__import.name`)
+- `pathRegex` (matches `__import.path`)
 
-## Key concept: leaf metadata (`__import`)
+Leaves failing either filter are excluded.
 
-Whenever something is treated as an import “leaf”, it gets metadata like:
+This can be used to filter via glob patterns using the `perch.lib.glob.toRegex`
+function.
 
-- `__import.path`: the path that was imported (or examined)
-- `__import.type`: `"regular"`, `"default"`, or `"unknown"`
-- `__import.value`: the imported value (if importable; otherwise `null`)
-- `__import.name`: a generated name (based on path + separator + nesting)
+### Default.nix behavior
 
-This is super useful for debugging, filtering, and building harnesses.
-
----
-
-## Filtering: `nameRegex` and `pathRegex`
-
-Most of the functions take an args attrset that can include:
-
-- `nameRegex`: match against the generated `__import.name`
-- `pathRegex`: match against the string form of the file path used
-
-If a leaf fails either filter, it’s excluded.
-
-This gives you a simple “import only tests”, “import only modules under X”,
-etc., without hardcoding lists.
+By default, directories containing `default.nix` are treated as a leaf. Set
+`ignoreDefaults = true` to force recursion instead.
 
 ---
 
-## The core function: `dirToAttrsWithMap`
+## import.dirToAttrsWithMap
 
-### What it does
+Walk a directory and return a **tree-shaped attrset**, calling `map` on each
+leaf (metadata included).
 
-`dirToAttrsWithMap` walks a directory and returns a nested attrset. At every
-leaf, it calls your `map` function with a metadata-wrapped value (the thing that
-contains `__import = { ... }`).
+_Type:_
 
-### Signature (conceptually)
-
-- Input: an args attrset with at least:
-  - `dir` (path)
-  - `separator` (string)
-  - `map` (function)
-  - optional `nameRegex`, `pathRegex`
-- Output: nested attrset
-
-### What counts as a leaf?
-
-- `foo.nix` (a regular file ending in `.nix`) -> imported via
-  `import "${dir}/foo.nix"`
-
-- `someDir/default.nix` (a directory containing `default.nix`) -> imported via
-  `import "${dir}/someDir/default.nix"`
-
-- Anything else becomes `"unknown"` with `value = null` (but can still be mapped
-  in, depending on your use)
-
-### Example usage pattern
-
-- “Give me a tree of imported values”
-  - Use a `map` that returns `imported.__import.value`
-
-- “Give me a tree of paths”
-  - Use a `map` that returns `imported.__import.path`
-
-That’s exactly the pattern the convenience helpers follow.
+```text
+{
+  map: raw value -> raw value,
+  dir: absolute path,
+  separator: string,
+  nameRegex: null or string,
+  pathRegex: null or string,
+  ignoreDefaults: boolean,
+  ...
+} -> attribute set
+```
 
 ---
 
-## Convenience wrappers (pattern, not exhaustive)
+## import.dirToListWithMap
 
-These helpers are basically “same scan, different projection”.
+Walk a directory and return a **flat list** of mapped leaves.
 
-### Example 1: `dirToValueAttrs`
+_Type:_
 
-- Shape: tree-shaped attrset
-- Leaves: imported values
-- Implementation idea: call `dirToAttrsWithMap` with
-  `map = imported: imported.__import.value`
-
-Use when you want modules by directory structure.
-
-### Example 2: `dirToFlatValueAttrs`
-
-- Shape: flat attrset
-- Keys: generated `__import.name` (prefix + separator + file/dir name)
-- Values: imported values
-- Implementation idea:
-  - collect all leaves into a list
-  - convert to attrset keyed by `__import.name`
-
-Use when you want “everything addressable by a stable-ish name”.
+```text
+{
+  map: raw value -> raw value,
+  dir: absolute path,
+  separator: string,
+  nameRegex: null or string,
+  pathRegex: null or string,
+  ignoreDefaults: boolean,
+  ...
+} -> list of raw value
+```
 
 ---
 
-## When to use which shape
+## import.dirToFlatAttrsWithMap
 
-- Use **tree-shaped attrsets** when structure matters (mirroring folders).
-- Use **flat lists** when you just want to iterate (tests, lint passes, bulk
-  eval).
-- Use **flat attrsets** when you want lookup by name (registries, named suites).
+Walk a directory and return a **flat attrset** keyed by `__import.name`.
+
+_Type:_
+
+```text
+{
+  map: raw value -> raw value,
+  dir: absolute path,
+  separator: string,
+  nameRegex: null or string,
+  pathRegex: null or string,
+  ignoreDefaults: boolean,
+  ...
+} -> attribute set
+```
+
+---
+
+## Convenience projections (same scan, different “view”)
+
+These are all just preset `map` functions over the same core scan:
+
+- `dirToAttrsWithMetadata`: tree of metadata (leaves are the
+  `{ __import = ...; }` wrapper)
+- `dirToValueAttrs`: tree of `__import.value`
+- `dirToPathAttrs`: tree of `__import.path`
+
+- `dirToListWithMetadata`: list of metadata wrappers
+- `dirToValueList`: list of `__import.value`
+- `dirToPathList`: list of `__import.path`
+
+- `dirToFlatAttrsWithMetadata`: flat attrset of metadata wrappers (keyed by
+  `__import.name`)
+- `dirToFlatValueAttrs`: flat attrset of `__import.value`
+- `dirToFlatPathAttrs`: flat attrset of `__import.path`
 
 ---
 
 ## Notes / gotchas
 
-- The generated name is based on directory nesting and `separator`. Pick a
-  separator that won’t collide with your actual file names if you care about
-  reversibility.
-- `"unknown"` leaves exist so you can detect “non-nix stuff” if you want, but
-  most callers will ignore them by filtering via regex or by mapping to
-  `__import.value` (which will be `null`).
-- This code does real directory reading + imports, so it’s best used in tooling
-  / module aggregation layers, not in hot inner loops.
-
----
-
-## Suggested doc-wrapping strategy (optional)
-
-If you still want `self.lib.docs.function` wrappers for these later, a safe
-pattern is:
-
-- define the raw functions here (bootstrap-safe)
-- in a later stage (after `self.lib` exists), re-export/wrap them with docs
-
-That keeps bootstrapping simple and still gives you structured docs once
-everything is loaded.
+- Generated names depend on `separator` + nesting; pick a separator that won’t
+  collide with real names if you care about readability.
+- `"unknown"` leaves exist so tooling can notice non-nix files; most callers map
+  to `__import.value` (which becomes `null`) or filter via regex.
+- This does real directory reads + imports: great for aggregation/tooling, not
+  something you want in hot inner loops.
