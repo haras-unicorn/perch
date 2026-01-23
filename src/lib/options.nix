@@ -6,68 +6,39 @@
       {
         description = ''
           Flatten an evaluated NixOS-style options tree into a sorted list.
-          Also descends into submodule option types (including listOf submodule).
+          Also descends into submodule option types (including listOf submodule)
+          and removes any `_module` options.
         '';
         type = self.lib.types.function lib.types.raw (lib.types.listOf lib.types.raw);
       }
       (
         let
-          subOptionsTreeFromType =
-            type: prefix:
-            if type ? getSubOptions then
-              let
-                r = builtins.tryEval (type.getSubOptions prefix);
-              in
-              if r.success then r.value else null
-            else if type ? elemType then
-              subOptionsTreeFromType type.elemType prefix
-            else if type ? nestedType then
-              subOptionsTreeFromType type.nestedType prefix
-            else
-              null;
-
           flatten =
-            pathPrefix: optionsTree:
-            lib.sortOn (flattened: flattened.optionName) (
-              lib.concatLists (
-                lib.mapAttrsToList (
-                  attributeName: attributeValue:
-                  if lib.hasPrefix "_" attributeName then
-                    [ ]
-                  else if
-                    lib.isAttrs attributeValue && attributeValue ? _type && attributeValue._type == "option"
-                  then
-                    let
-                      optionName = lib.concatStringsSep "." (pathPrefix ++ [ attributeName ]);
-                      prefix = pathPrefix ++ [ attributeName ];
-
-                      subTree = if attributeValue ? type then subOptionsTreeFromType attributeValue.type prefix else null;
-
-                      subFlattened = if subTree == null then [ ] else flatten prefix subTree;
-                    in
-                    [
-                      {
-                        inherit optionName;
-                        option = attributeValue;
-                      }
-                    ]
-                    ++ subFlattened
-                  else if lib.isAttrs attributeValue then
-                    flatten (pathPrefix ++ [ attributeName ]) attributeValue
-                  else
-                    [ ]
-                ) optionsTree
+            options:
+            (lib.concatMap
+              (
+                option:
+                if option.type ? getSubOptions then
+                  [ option ] ++ (flatten (option.type.getSubOptions option.loc))
+                else
+                  [ option ]
+              )
+              (
+                lib.collect (value: builtins.isAttrs value && value ? _type && value._type == "option") (
+                  builtins.removeAttrs options [ "_module" ]
+                )
               )
             );
         in
-        optionsTree: flatten [ ] optionsTree
+        flatten
       );
 
   config.flake.lib.options.toMarkdown =
     self.lib.docs.function
       {
         description = ''
-          Render an evaluated options tree into a simple markdown document.
+          Render an evaluated options tree into a simple markdown document
+          excluding any "_module" options.
 
           For each option it produces a heading with the option path,
           its description, type and default if provided.
@@ -144,6 +115,38 @@
               ]
               string;
 
+          isLiteral = v: builtins.isAttrs v && v ? _type && v ? text;
+
+          renderDoc =
+            value:
+            if value == null then
+              null
+            else if isLiteral value && value._type == "literalMD" then
+              lib.trim value.text
+            else if isLiteral value && value._type == "literalExpression" then
+              lib.concatStringsSep "\n" [
+                "```nix"
+                (lib.trim value.text)
+                "```"
+              ]
+            else if builtins.isString value then
+              escape (lib.trim value)
+            else
+              # last resort: pretty-print arbitrary nix values
+              lib.trim (pretty value);
+
+          renderValueInlineOrBlock =
+            value:
+            let
+              txt = lib.trim (pretty value);
+              lines = lib.splitString "\n" txt;
+              isMultiline = (builtins.length lines > 1) && txt != "";
+            in
+            if !isMultiline then
+              "`${txt}`"
+            else
+              lib.concatStringsSep "\n" ([ "```text" ] ++ lines ++ [ "```" ]);
+
           optionTypeString =
             option:
             if option ? type && option.type ? description then
@@ -153,21 +156,89 @@
             else
               "raw value";
 
-          optionDescriptionStringOrNull =
+          optionDescriptionLines =
             option:
             let
               desc = option.description or null;
+              rendered = renderDoc desc;
             in
-            if desc == null || desc == "" then null else escape (lib.trim desc);
-
-          defaultString =
-            option:
-            if option ? defaultText then
-              lib.trim option.defaultText
-            else if option ? default then
-              pretty option.default
+            if rendered == null || rendered == "" then
+              [ ]
             else
-              "";
+              [
+                rendered
+                ""
+              ];
+
+          defaultLines =
+            option:
+            let
+              value =
+                if option ? defaultText then
+                  option.defaultText
+                else if option ? default then
+                  option.default
+                else
+                  null;
+
+              rendered =
+                if value == null then
+                  null
+                else if isLiteral value && value._type == "literalExpression" then
+                  renderDoc value
+                else if isLiteral value && value._type == "literalMD" then
+                  renderDoc value
+                else
+                  renderValueInlineOrBlock value;
+            in
+            if rendered == null || rendered == "" then
+              [ ]
+            else
+              [
+                "_Default:_"
+                rendered
+                ""
+              ];
+
+          exampleLines =
+            option:
+            let
+              example = option.example or null;
+              rendered = renderDoc example;
+              fallback =
+                if example == null then
+                  null
+                else if isLiteral example then
+                  null
+                else
+                  renderValueInlineOrBlock example;
+              final = if rendered != null && rendered != "" then rendered else fallback;
+            in
+            if final == null || final == "" then
+              [ ]
+            else
+              [
+                "_Example:_"
+                final
+                ""
+              ];
+
+          readOnlyLines =
+            option:
+            if (option.readOnly or false) then
+              [
+                "- **Read-only**"
+              ]
+            else
+              [ ];
+
+          shouldRender =
+            option:
+            let
+              vis = option.visible or true;
+              isHidden = (option.internal or false) || (vis == false) || (vis == "transparent");
+            in
+            !isHidden;
 
           renderTypeBlock =
             typeText:
@@ -189,43 +260,32 @@
               );
 
           renderOneOption =
-            flattenedOption:
+            option:
             let
-              optionName = flattenedOption.optionName;
-              option = flattenedOption.option;
-
-              descriptionOrNull = optionDescriptionStringOrNull option;
               typeText = optionTypeString option;
-
-              defaultLines =
-                let
-                  default = defaultString option;
-                in
-                if default != "" then [ ("_Default:_ `${default}`") ] else [ ];
             in
             lib.concatStringsSep "\n" (
               [
-                "## ${escape optionName}"
+                "## ${escape (builtins.concatStringsSep "." option.loc)}"
                 ""
               ]
-              ++ (
-                if descriptionOrNull == null then
-                  [ ]
-                else
-                  [
-                    descriptionOrNull
-                    ""
-                  ]
-              )
+              ++ (readOnlyLines option)
+              ++ [ "" ]
+              ++ (optionDescriptionLines option)
               ++ [
                 (renderTypeBlock typeText)
                 ""
               ]
-              ++ defaultLines
+              ++ (defaultLines option)
+              ++ (exampleLines option)
             );
 
+          rendered = builtins.filter (x: x != null && x != "") (
+            map (fo: if shouldRender fo then renderOneOption fo else "") flattened
+          );
+
         in
-        lib.concatStringsSep "\n\n" (map renderOneOption flattened)
+        lib.concatStringsSep "\n\n" rendered
       );
 
   options.dummy = {
@@ -237,6 +297,7 @@
           description = "Dummy suboption to test direct option flattening.";
           type = lib.types.str;
           default = "";
+          defaultText = lib.literalExpression ''(x: builtins.trace x x) "hello world :)"'';
         };
       };
     };
@@ -249,6 +310,7 @@
             description = "Dummy suboption to test attrs of option flattening.";
             type = lib.types.str;
             default = "";
+            example = lib.literalMD ''~test~ _test_ **test**'';
           };
         }
       );
@@ -260,6 +322,7 @@
         lib.types.submodule {
           options.suboption = lib.mkOption {
             description = "Dummy suboption to test list of option flattening.";
+            readOnly = true;
             type = lib.types.str;
             default = "";
           };

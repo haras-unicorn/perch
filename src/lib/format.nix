@@ -32,11 +32,8 @@
           indentation = "  ";
 
           renderSingleArgument =
-            flattenedOption:
+            option:
             let
-              optionName = flattenedOption.optionName;
-              option = flattenedOption.option;
-
               typeString = optionTypeToString option;
               descriptionStringOrNull = optionDescriptionToStringOrNull option;
 
@@ -51,7 +48,8 @@
                   );
             in
             lib.concatStringsSep "\n" (
-              renderedDescriptionLines ++ [ "${indentation}${optionName}: ${renderedTypeString},\n" ]
+              renderedDescriptionLines
+              ++ [ "${indentation}${builtins.concatStringsSep "." option.loc}: ${renderedTypeString},\n" ]
             );
 
           renderedArgumentsBody = lib.concatStringsSep "\n" (

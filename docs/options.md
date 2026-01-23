@@ -108,13 +108,15 @@ _Type:_ `attribute set of (submodule)`
 
 _Default:_ `{ }`
 
-## dummy\.attrsOfSubmodule\.suboption
+## dummy\.attrsOfSubmodule\.<name\>\.suboption
 
 Dummy suboption to test attrs of option flattening\.
 
 _Type:_ `string`
 
 _Default:_ `""`
+
+_Example:_ ~test~ _test_ **test**
 
 ## dummy\.listOfSubmodule
 
@@ -124,7 +126,9 @@ _Type:_ `list of (submodule)`
 
 _Default:_ `{ }`
 
-## dummy\.listOfSubmodule\.suboption
+## dummy\.listOfSubmodule\.\*\.suboption
+
+- **Read-only**
 
 Dummy suboption to test list of option flattening\.
 
@@ -146,7 +150,11 @@ Dummy suboption to test direct option flattening\.
 
 _Type:_ `string`
 
-_Default:_ `""`
+_Default:_
+
+```nix
+(x: builtins.trace x x) "hello world :)"
+```
 
 ## eval\.allowedArgs
 

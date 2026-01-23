@@ -509,13 +509,15 @@ _Type:_ `raw value -> raw value -> raw value -> raw value -> raw value`
 ## options\.flatten
 
 Flatten an evaluated NixOS\-style options tree into a sorted list\. Also
-descends into submodule option types \(including listOf submodule\)\.
+descends into submodule option types \(including listOf submodule\) and removes
+any \`\_module\` options\.
 
 _Type:_ `raw value -> list of raw value`
 
 ## options\.toMarkdown
 
-Render an evaluated options tree into a simple markdown document\.
+Render an evaluated options tree into a simple markdown document excluding any
+"\_module" options\.
 
 For each option it produces a heading with the option path, its description,
 type and default if provided\.

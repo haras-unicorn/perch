@@ -121,21 +121,29 @@
         )
       );
 
-  flake.lib.docs.libToOptions = lib.fix (
-    libToOptions: options:
-    if builtins.isAttrs options then
-      if options ? __doc then
-        lib.mkOption { inherit (options.__doc) type description; }
-      else
-        let
-          pruned = lib.filterAttrs (_: value: value != null) (
-            lib.mapAttrs (_: value: libToOptions value) options
-          );
-        in
-        if pruned == { } then null else pruned
-    else
-      null
-  );
+  flake.lib.docs.libToOptions =
+    let
+      impl = lib.fix (
+        libToOptions: options:
+        if builtins.isAttrs options then
+          if options ? __doc then
+            lib.mkOption { inherit (options.__doc) type description; }
+          else
+            let
+              pruned = lib.filterAttrs (_: value: value != null) (
+                lib.mapAttrs (_: value: libToOptions value) options
+              );
+            in
+            if pruned == { } then null else pruned
+        else
+          null
+      );
+    in
+    options:
+    let
+      result = impl options;
+    in
+    if result == null then { } else result;
 
   flake.lib.docs.function =
     let
