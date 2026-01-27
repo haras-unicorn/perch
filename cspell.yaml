@@ -46,3 +46,5 @@ words:
   - qmark
   - functors
   - suboptions
+  - dedup
+  - dedents

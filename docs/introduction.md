@@ -1,7 +1,7 @@
 # Perch
 
 Perch provides a structured framework for
-[Nix flakes](https://nixos.wiki/wiki/Flakes), offering a stable place to
+[Nix flakes](https://wiki.nixos.org/wiki/Flakes), offering a stable place to
 organize, extend, and refine your configurations.
 
 It does so by importing all nix files in a subdirectory of your repository and
