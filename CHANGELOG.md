@@ -7,6 +7,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.3] - 2026-01-27
+
+### Changed
+
+- fix link to flakes in `introduction.md`
+
+### Added
+
+- `perch.lib.string.wordSplit` function to split strings based on common schemes
+- `perch.lib.string.toTitle` function that users `wordSplit` and `capitalize` to
+  make titles
+- `perch.lib.string.indent` function that indents/dedents strings
+
 ## [1.2.2] - 2026-01-23
 
 ### Changed
@@ -117,6 +130,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - everything
 
+[1.2.3]: https://github.com/haras-unicorn/perch/compare/1.2.2...1.2.3
 [1.2.2]: https://github.com/haras-unicorn/perch/compare/1.2.1...1.2.2
 [1.2.1]: https://github.com/haras-unicorn/perch/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/haras-unicorn/perch/compare/1.1.1...1.2.0
