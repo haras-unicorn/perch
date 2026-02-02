@@ -54,7 +54,7 @@
               };
 
               selfModules = lib.mkOption {
-                type = lib.types.either (lib.types.listOf lib.types.raw) (lib.types.attrsOf lib.types.raw);
+                type = lib.types.either self.lib.types.list lib.types.attrs;
                 default = { };
                 description = ''
                   Modules belonging to this flake.
@@ -67,7 +67,7 @@
               };
 
               inputModules = lib.mkOption {
-                type = lib.types.listOf lib.types.raw;
+                type = self.lib.types.list;
                 default = [ ];
                 description = ''
                   Extra input modules to include during evaluation.
@@ -116,6 +116,154 @@
             };
           }
         )) lib.types.attrs;
+        tests =
+          let
+            makeFlake = self.lib.flake.make;
+          in
+          (
+            let
+              inputs = {
+                perch = self // {
+                  modules.default = {
+                    imports = [
+                      (
+                        {
+                          perch,
+                          lib,
+                          flakeModules,
+                          ...
+                        }:
+                        let
+                          nixosModules = builtins.mapAttrs (
+                            _:
+                            perch.lib.module.patch (_: args: args) (_: args: args) (
+                              _: result:
+                              if result ? nixosModule then
+                                result.nixosModule
+                              else if result ? config && result.config ? nixosModule then
+                                result.config.nixosModule
+                              else
+                                { }
+                            )
+                          ) flakeModules;
+                        in
+                        {
+                          _file = ./flake.nix;
+                          key = "input";
+                          options.nixosModule = lib.mkOption {
+                            type = lib.types.attrs;
+                          };
+                          options.flake.nixosModules = lib.mkOption {
+                            type = lib.types.attrs;
+                          };
+                          config.eval.privateConfig = [ [ "nixosModule" ] ];
+                          config.eval.publicConfig = [
+                            [
+                              "flake"
+                              "nixosModules"
+                            ]
+                          ];
+                          config.flake.nixosModules = nixosModules // {
+                            default = {
+                              imports = builtins.attrValues nixosModules;
+                            };
+                          };
+                        }
+                      )
+                    ];
+                  };
+                };
+              };
+
+              selfModules = {
+                module = {
+                  _file = ./flake.nix;
+                  key = "self";
+                  nixosModule = {
+                    environment.systemPackages = [ "my package" ];
+                  };
+                };
+              };
+
+              result = makeFlake { inherit inputs selfModules; };
+              resultList = makeFlake {
+                inherit inputs;
+                selfModules = builtins.attrValues selfModules;
+              };
+            in
+            {
+              nixos_modules_result_correct =
+                result.nixosModules == {
+                  module = {
+                    environment.systemPackages = [ "my package" ];
+                  };
+                  default = {
+                    imports = [
+                      {
+                        environment.systemPackages = [ "my package" ];
+                      }
+                    ];
+                  };
+                };
+
+              list_nixos_modules_result_correct =
+                resultList.nixosModules == {
+                  # NOTE: -1 from being a list index
+                  module-1 = {
+                    environment.systemPackages = [ "my package" ];
+                  };
+                  default = {
+                    imports = [
+                      {
+                        environment.systemPackages = [ "my package" ];
+                      }
+                    ];
+                  };
+                };
+            }
+          )
+          // (
+            let
+              inputs = {
+                perch = {
+                  modules.default = {
+                    imports = [
+                      (
+                        { lib, ... }:
+                        {
+                          options.flake.lib = lib.mkOption {
+                            type = lib.types.attrsOf (lib.types.functionTo lib.types.raw);
+                          };
+                        }
+                      )
+                    ];
+                  };
+                };
+              };
+
+              selfModules = {
+                lib =
+                  { lib, ... }:
+                  {
+                    flake.lib.mkModule = self: {
+                      options.flake.hello = lib.mkOption {
+                        type = lib.types.str;
+                      };
+                      config.flake.hello = "hello";
+                    };
+                  };
+                module = { self, ... }: self.lib.mkModule self;
+              };
+
+              result = makeFlake {
+                inherit inputs selfModules;
+                libPrefix = "lib";
+              };
+            in
+            {
+              with_lib_factory_result_correct = result.hello == "hello";
+            }
+          );
       }
       (
         {

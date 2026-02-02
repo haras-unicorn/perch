@@ -9,6 +9,8 @@
   ...
 }:
 
+# TODO: mkMerge when patch supports that kinda stuff
+
 self.lib.factory.artifactModule {
   inherit specialArgs flakeModules nixpkgs;
   superConfig = config;
@@ -30,31 +32,20 @@ self.lib.factory.artifactModule {
         description = "Convert all packages to legacy packages and put them in flake outputs";
       };
     };
-  mapConfig = packages: prev: {
-    eval = prev.eval // {
-      privateConfig = [
-        [ "packagesAsApps" ]
-        [ "packagesAsLegacyPackages" ]
-      ]
-      ++ prev.eval.privateConfig;
-    };
+  mapConfig =
+    packages: prev:
+    prev
+    // {
+      eval = prev.eval // {
+        privateConfig = prev.eval.privateConfig ++ [
+          [ "packagesAsApps" ]
+          [ "packagesAsLegacyPackages" ]
+        ];
+      };
 
-    flake = prev.flake // {
-      legacyPackages = lib.mkIf config.packagesAsLegacyPackages packages;
-      apps = lib.mkIf config.packagesAsApps (
-        builtins.mapAttrs (
-          system: systemPackages:
-          builtins.mapAttrs (name: package: {
-            type = "app";
-            program = lib.getExe package;
-            meta =
-              let
-                initial = package.meta or { };
-              in
-              initial // { description = initial.description or name; };
-          }) (lib.filterAttrs (_: value: value ? meta && value.meta ? mainProgram) systemPackages)
-        ) packages
-      );
+      flake = prev.flake // {
+        legacyPackages = lib.mkIf config.packagesAsLegacyPackages packages;
+        apps = lib.mkIf config.packagesAsApps (self.lib.packages.asApps packages);
+      };
     };
-  };
 }

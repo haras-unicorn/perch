@@ -1,6 +1,7 @@
 { lib, ... }:
 
 let
+  # NOTE: reimplemented here to avoid infinite recursion
   recursiveAttrsOf =
     elemType:
     lib.types.mkOptionType {

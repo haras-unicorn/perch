@@ -48,3 +48,4 @@ words:
   - suboptions
   - dedup
   - dedents
+  - mktemp

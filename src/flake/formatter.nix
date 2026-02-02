@@ -16,7 +16,7 @@ self.lib.factory.artifactModule {
   nixpkgsConfig = "formatterNixpkgs";
   config = "formatter";
   configs = "formatter";
-  artifactType = lib.types.attrsOf lib.types.raw;
+  artifactType = lib.types.attrs;
   mapArtifacts =
     formatters:
     builtins.mapAttrs (

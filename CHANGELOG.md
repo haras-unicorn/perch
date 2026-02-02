@@ -7,6 +7,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-02-04
+
+### Changed
+
+- change uses of `lib.types.attrsOf lib.types.raw` to `lib.types.attrs`
+- change uses of `lib.types.listOf lib.types.raw` to `self.lib.types.list`
+- unit tests moved to running with `perch.lib.docs.function`
+- flake tests moved to running with `perch.lib.test.flake` generated app
+
+### Added
+
+- `perch.lib.test.unit` function for unit test evaluation
+- `perch.lib.test.flake` function for flake test evaluation
+- `perch.lib.attrset.flatten` function for attrset flattening
+- `perch.lib.attrset.isDictionary` function for checking whether an attrset
+  should be peeked into
+
+### Removed
+
+- tests from `test/unit` folder
+
 ## [1.2.3] - 2026-01-27
 
 ### Changed
@@ -130,6 +151,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - everything
 
+[1.3.0]: https://github.com/haras-unicorn/perch/compare/1.2.3...1.3.0
 [1.2.3]: https://github.com/haras-unicorn/perch/compare/1.2.2...1.2.3
 [1.2.2]: https://github.com/haras-unicorn/perch/compare/1.2.1...1.2.2
 [1.2.1]: https://github.com/haras-unicorn/perch/compare/1.2.0...1.2.1

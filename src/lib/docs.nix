@@ -122,28 +122,115 @@
       );
 
   flake.lib.docs.libToOptions =
-    let
-      impl = lib.fix (
-        libToOptions: options:
-        if builtins.isAttrs options then
-          if options ? __doc then
-            lib.mkOption { inherit (options.__doc) type description; }
-          else
-            let
-              pruned = lib.filterAttrs (_: value: value != null) (
-                lib.mapAttrs (_: value: libToOptions value) options
-              );
-            in
-            if pruned == { } then null else pruned
-        else
-          null
+    self.lib.docs.function
+      {
+        description = ''
+          Render a flake library to options ready to be rendered to markdown.
+        '';
+        type = self.lib.types.function lib.types.attrs lib.types.attrs;
+        tests =
+          let
+            wildLib = {
+              meta = {
+                version = "1.2.3";
+                nums = [
+                  1
+                  2
+                  3
+                ];
+                flags = {
+                  enabled = true;
+                  threshold = 10;
+                };
+              };
+
+              misc = {
+                greeting = "hi";
+                n = 42;
+                xs = [
+                  "a"
+                  { k = "v"; }
+                  9
+                ];
+              };
+
+              math = {
+                inc = self.lib.docs.function {
+                  description = "Increment an int";
+                  type = self.lib.types.function lib.types.int lib.types.int;
+                  asserted = false;
+                } (x: x + 1);
+
+                add = self.lib.docs.function {
+                  description = "Add two ints (curried)";
+                  type = self.lib.types.function lib.types.int (self.lib.types.function lib.types.int lib.types.int);
+                  asserted = true;
+                } (a: b: a + b);
+              };
+
+              junk = {
+                a = {
+                  b = {
+                    c = "nope";
+                  };
+                };
+              };
+            };
+
+            outTry = builtins.tryEval (self.lib.docs.libToOptions wildLib);
+            out = outTry.value;
+
+            isOption = x: builtins.isAttrs x && x ? type && x ? description;
+          in
+          {
+            does_not_throw = outTry.success == true;
+
+            keeps_only_documented_nodes_as_options =
+              (out ? math)
+              && (out.math ? inc)
+              && (out.math ? add)
+              && isOption out.math.inc
+              && isOption out.math.add;
+
+            prunes_random_leaves_and_subtrees = !(out ? meta) && !(out ? misc) && !(out ? junk);
+
+            prunes_empty_containers = builtins.attrNames out == [ "math" ];
+
+            option_payload_matches_docs_function =
+              out.math.inc.description == "Increment an int"
+              && out.math.inc.type.name == "function"
+              && out.math.add.description == "Add two ints (curried)"
+              && out.math.add.type.name == "function"
+              && !(out.math.inc ? ${self.lib.docs.functionDocAttr})
+              && !(out.math.add ? ${self.lib.docs.functionDocAttr});
+          };
+      }
+      (
+        let
+          impl = lib.fix (
+            libToOptions: options:
+            if self.lib.attrset.isDictionary options then
+              if options ? ${self.lib.docs.functionDocAttr} then
+                lib.mkOption { inherit (options.${self.lib.docs.functionDocAttr}) type description; }
+              else
+                let
+                  pruned = lib.filterAttrs (_: value: value != null) (
+                    lib.mapAttrs (_: value: libToOptions value) options
+                  );
+                in
+                if pruned == { } then null else pruned
+            else
+              null
+          );
+        in
+        options:
+        let
+          result = impl options;
+        in
+        if result == null then { } else result
       );
-    in
-    options:
-    let
-      result = impl options;
-    in
-    if result == null then { } else result;
+
+  flake.lib.docs.functionDocAttr = "__functionDoc";
 
   flake.lib.docs.function =
     let
@@ -151,8 +238,10 @@
         asserted: type:
         let
           makeAssertedIfResultIsFunction =
-            if type.__signature.resultType.name == "function" then
-              makeAsserted asserted type.__signature.resultType
+            if
+              type.${self.lib.types.functionSignatureAttr}.resultType ? ${self.lib.types.functionSignatureAttr}
+            then
+              makeAsserted asserted type.${self.lib.types.functionSignatureAttr}.resultType
             else
               function: function;
         in
@@ -160,22 +249,22 @@
           function: function
         else if asserted == "argument" then
           function: argument:
-          assert type.__signature.argumentType.check argument;
+          assert type.${self.lib.types.functionSignatureAttr}.argumentType.check argument;
           makeAssertedIfResultIsFunction (function argument)
         else if asserted == "result" then
           function: argument:
           let
             result = function argument;
-            resultType = type.__signature.resultType;
+            resultType = type.${self.lib.types.functionSignatureAttr}.resultType;
           in
           assert resultType.check result;
           makeAssertedIfResultIsFunction result
         else
           function: argument:
-          assert type.__signature.argumentType.check argument;
+          assert type.${self.lib.types.functionSignatureAttr}.argumentType.check argument;
           let
             result = function argument;
-            resultType = type.__signature.resultType;
+            resultType = type.${self.lib.types.functionSignatureAttr}.resultType;
           in
           assert resultType.check result;
           makeAssertedIfResultIsFunction result;
@@ -199,22 +288,27 @@
           type,
           description ? "",
           asserted ? false,
+          tests ? { },
         }:
         function:
         (toFunctor (makeAsserted asserted type function))
         // {
-          __doc = { inherit description type asserted; };
+          ${self.lib.types.functionSignatureAttr} = type.${self.lib.types.functionSignatureAttr};
+          ${self.lib.docs.functionDocAttr} = {
+            inherit
+              description
+              type
+              asserted
+              tests
+              ;
+          };
         };
-
-      opaqueFunctionType = (lib.types.functionTo lib.types.raw) // {
-        description = "function";
-      };
     in
     undocumented {
       description = ''
         Attach documentation (and optional runtime assertions) to a function.
       '';
-      asserted = true;
+      asserted = "argument";
       type = self.lib.types.function (self.lib.types.args {
         options = {
           type = lib.mkOption {
@@ -224,13 +318,11 @@
             type = lib.types.addCheck lib.types.optionType (
               type:
               builtins.isAttrs type
-              && type ? name
-              && type.name == "function"
-              && type ? __signature
-              && type.__signature ? argumentType
-              && (lib.types.optionType.check type.__signature.argumentType)
-              && type.__signature ? resultType
-              && (lib.types.optionType.check type.__signature.resultType)
+              && type ? ${self.lib.types.functionSignatureAttr}
+              && type.${self.lib.types.functionSignatureAttr} ? argumentType
+              && (lib.types.optionType.check type.${self.lib.types.functionSignatureAttr}.argumentType)
+              && type.${self.lib.types.functionSignatureAttr} ? resultType
+              && (lib.types.optionType.check type.${self.lib.types.functionSignatureAttr}.resultType)
             );
           };
           description = lib.mkOption {
@@ -248,7 +340,121 @@
               ]
             );
           };
+          tests = lib.mkOption {
+            description = ''Unit test attrset or function for this function'';
+            default = { };
+            type = lib.types.oneOf [
+              (lib.types.attrsOf lib.types.bool)
+              (self.lib.types.function self.lib.types.opaqueFunction (lib.types.attrsOf lib.types.bool))
+            ];
+          };
         };
-      }) (self.lib.types.function opaqueFunctionType opaqueFunctionType);
+      }) (self.lib.types.function self.lib.types.opaqueFunction self.lib.types.opaqueFunction);
+      tests =
+        let
+          inc = (x: x + 1);
+          badResult = (_x: "oops");
+          add = (a: b: a + b);
+
+          tIntToInt = self.lib.types.function lib.types.int lib.types.int;
+          tIntToIntToInt = self.lib.types.function lib.types.int (
+            self.lib.types.function lib.types.int lib.types.int
+          );
+        in
+        {
+          attaches_doc_and_signature_attrs =
+            let
+              f = self.lib.docs.function {
+                description = "increment";
+                type = tIntToInt;
+                asserted = false;
+              } inc;
+            in
+            f.${self.lib.docs.functionDocAttr}.description == "increment"
+            && f.${self.lib.docs.functionDocAttr}.asserted == false
+            && f.${self.lib.docs.functionDocAttr}.type.name == "function"
+            && f.${self.lib.types.functionSignatureAttr}.argumentType.name == "int"
+            && f.${self.lib.types.functionSignatureAttr}.resultType.name == "int";
+
+          is_callable =
+            let
+              f = self.lib.docs.function {
+                description = "increment";
+                type = tIntToInt;
+                asserted = false;
+              } inc;
+            in
+            f 1 == 2;
+
+          argument_assert_fails =
+            let
+              f = self.lib.docs.function {
+                description = "increment";
+                type = tIntToInt;
+                asserted = "argument";
+              } inc;
+              r = builtins.tryEval (f "nope");
+            in
+            r.success == false;
+
+          result_assert_fails =
+            let
+              f = self.lib.docs.function {
+                description = "badResult";
+                type = tIntToInt;
+                asserted = "result";
+              } badResult;
+              r = builtins.tryEval (f 1);
+            in
+            r.success == false;
+
+          asserted_true_checks_both =
+            let
+              f = self.lib.docs.function {
+                description = "increment";
+                type = tIntToInt;
+                asserted = true;
+              } inc;
+
+              badArg = builtins.tryEval (f "x");
+              good = builtins.tryEval (f 2);
+            in
+            (badArg.success == false) && (good.success == true) && (good.value == 3);
+
+          wraps_curried_functions_recursively =
+            let
+              f = self.lib.docs.function {
+                description = "add";
+                type = tIntToIntToInt;
+                asserted = true;
+              } add;
+
+              good = builtins.tryEval ((f 1) 2);
+              bad1 = builtins.tryEval ((f "x") 2);
+              bad2 = builtins.tryEval ((f 1) "y");
+            in
+            (good.success && good.value == 3) && (bad1.success == false) && (bad2.success == false);
+
+          returns_functor =
+            let
+              f = self.lib.docs.function {
+                description = "increment";
+                type = self.lib.types.function lib.types.int lib.types.int;
+                asserted = false;
+              } (x: x + 1);
+            in
+            self.lib.trivial.isFunctor f == true;
+
+          asserted_false_does_not_assert =
+            let
+              f = self.lib.docs.function {
+                description = "lies";
+                type = self.lib.types.function lib.types.int lib.types.int;
+                asserted = false;
+              } (_: "not an int");
+              r = builtins.tryEval (f 1);
+            in
+            r.success == true && r.value == "not an int";
+        };
     } undocumented;
 }
