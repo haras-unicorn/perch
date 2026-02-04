@@ -21,64 +21,16 @@ lint:
       --config .markdown-link-check.json \
       --quiet \
       ...(fd '.*.md' | lines)
-    nix flake check --all-systems
-    @just test-e2e-all
-    @just test-unit
-
-upgrade:
-    nix flake update
-
-test-e2e-all *args:
-    #!/usr/bin/env nu
-    ls "{{ root }}/test/e2e" | get name | each {
-      (nix flake check
-        --override-flake "perch" "{{ root }}"
-        --all-systems
-        --no-write-lock-file
-        --option abort-on-warn true
-        {{ args }}
-        $"path:(realpath $in)")
-    }
-
-test-e2e test *args:
-    nix flake check \
-      --override-flake "perch" "{{ root }}" \
-      --all-systems \
-      --no-write-lock-file \
-      --option abort-on-warn true \
-      {{ args }} \
-      $"path:("{{ root }}/test/e2e/{{ test }}")"
-
-test-unit filter="":
-    #!/usr/bin/env nu
-    let result = (nix eval
-      --json
-      --impure
-      --show-trace
-      --option abort-on-warn true
-      --expr
-      '(builtins.getFlake "{{ root }}/test/unit").test {
-        root = "{{ root }}";
-        filter = "{{ filter }}";
-      }') | complete
-    if $result.exit_code != 0 {
-      print -e $result.stderr
-      exit 1
-    }
-
-    let json = $result.stdout | from json
-    print $json.summary
-    if not $json.ok {
-      print -e $result.stderr
-      exit 1
-    }
+    nix flake check
+    nix run .#flake-test
 
 repl test *args:
-    cd '{{ root }}/test/e2e/{{ test }}'; \
+    cd '{{ root }}/test/{{ test }}'; \
       nix repl \
         {{ args }} \
         --override-flake perch '{{ root }}' \
         --no-write-lock-file \
+        --show-trace \
         --expr 'rec { \
           perch = "{{ root }}"; \
           perchFlake = builtins.getFlake perch; \
@@ -93,9 +45,6 @@ run test app="" *args:
         {{ args }} \
         --no-write-lock-file \
         --override-flake perch '{{ root }}'
-
-dev-docs:
-    mdbook serve '{{ root }}/docs'
 
 docs:
     rm -rf '{{ root }}/artifacts'

@@ -100,6 +100,14 @@ Nixpkgs configuration for devShell
 
 _Type:_ `nixpkgs config`
 
+## docTestsAsChecks
+
+Convert all "perch\.lib\.docs\.function" tests to checks
+
+_Type:_ `boolean`
+
+_Default:_ `false`
+
 ## dummy\.attrsOfSubmodule
 
 Dummy option to test attrs of option flattening\.
@@ -184,31 +192,31 @@ _Default:_ `[ ]`
 
 Attribute set of all apps in the flake
 
-_Type:_ `attribute set of attribute set of raw value`
+_Type:_ `attribute set of (attribute set)`
 
 ## flake\.checks
 
 Attribute set of all checks in the flake
 
-_Type:_ `attribute set of attribute set of raw value`
+_Type:_ `attribute set of (attribute set)`
 
 ## flake\.devShells
 
 Attribute set of all devShells in the flake
 
-_Type:_ `attribute set of attribute set of raw value`
+_Type:_ `attribute set of (attribute set)`
 
 ## flake\.formatter
 
 Attribute set of all formatter in the flake
 
-_Type:_ `attribute set of raw value`
+_Type:_ `attribute set`
 
 ## flake\.legacyPackages
 
 Attribute set of all legacyPackages in the flake
 
-_Type:_ `attribute set of attribute set of raw value`
+_Type:_ `attribute set of (attribute set)`
 
 ## flake\.lib
 
@@ -230,13 +238,13 @@ _Default:_ `{ }`
 
 Attribute set of all nixosConfigurations in the flake
 
-_Type:_ `attribute set of raw value`
+_Type:_ `attribute set`
 
 ## flake\.nixosModules
 
 Attribute set of all nixosModules in the flake
 
-_Type:_ `attribute set of raw value`
+_Type:_ `attribute set`
 
 ## flake\.overlays
 
@@ -250,7 +258,7 @@ _Default:_ `{ }`
 
 Attribute set of all packages in the flake
 
-_Type:_ `attribute set of attribute set of raw value`
+_Type:_ `attribute set of (attribute set)`
 
 ## formatter
 
@@ -292,7 +300,7 @@ _Type:_ `nixpkgs config`
 
 Result of the nixosModule
 
-_Type:_ `attribute set of raw value`
+_Type:_ `attribute set`
 
 ## overlays
 

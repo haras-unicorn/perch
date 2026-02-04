@@ -79,6 +79,8 @@
       }
     );
 
+  flake.lib.types.functionSignatureAttr = "__functionSignature";
+
   flake.lib.types.function =
     argumentType: resultType:
     let
@@ -104,8 +106,28 @@
       merge = lib.options.mergeOneOption;
     })
     // {
-      __signature = {
+      ${self.lib.types.functionSignatureAttr} = {
         inherit argumentType resultType;
       };
+    };
+
+  flake.lib.types.list = (lib.types.listOf lib.types.raw) // {
+    name = "list";
+    description = "list";
+  };
+
+  flake.lib.types.opaqueFunction = (lib.types.functionTo lib.types.raw) // {
+    name = "opaqueFunction";
+    description = "opaque function";
+  };
+
+  flake.lib.types.recursiveAttrsOf =
+    elemType:
+    lib.types.mkOptionType {
+      name = "recursiveAttrsOf";
+      description = "nested attribute set of ${elemType.description or "values"}";
+      descriptionClass = "noun";
+      check = value: lib.isAttrs value;
+      merge = loc: defs: lib.foldl' lib.recursiveUpdate { } (map (def: def.value) defs);
     };
 }

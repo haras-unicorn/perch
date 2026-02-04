@@ -9,7 +9,7 @@
           Also descends into submodule option types (including listOf submodule)
           and removes any `_module` options.
         '';
-        type = self.lib.types.function lib.types.raw (lib.types.listOf lib.types.raw);
+        type = self.lib.types.function lib.types.raw self.lib.types.list;
       }
       (
         let

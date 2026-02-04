@@ -1,6 +1,19 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  root,
+  ...
+}:
 
 {
+  docTestsAsChecks = true;
+  flakeTests.asApps = true;
+  flakeTests.args = [
+    "--show-trace"
+    "--no-update-lock-file"
+    "--override-input"
+    "perch"
+    (builtins.toString root)
+  ];
   devShell = pkgs.mkShell {
     packages = with pkgs; [
       # version control

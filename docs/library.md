@@ -44,35 +44,55 @@ _Type:_
 } -> attribute set
 ```
 
+## attrset\.flatten
+
+Flatten an attrset recursively using a key separator\.
+
+_Type:_
+
+```text
+{
+  # The attrset to flatten
+  attrs: attribute set,
+
+  # Maximum recursion depth
+  maxDepth: (positive integer, meaning >0),
+
+  # Final attrset key separator
+  separator: string,
+
+  # Recurse into attrsets depending on this predicate
+  while: raw value -> boolean,
+
+  ...
+} -> attribute set
+```
+
 ## attrset\.keepAttrByPath
 
 Keep only the nested attribute specified by a path, returning a minimal attrset
 \(or empty if missing\)\.
 
-_Type:_
-`list of string -> attribute set of raw value -> attribute set of raw value`
+_Type:_ `list of string -> attribute set -> attribute set`
 
 ## attrset\.keepAttrsByPath
 
 Keep only the nested attributes specified by a list of paths, merging the kept
 results into one attrset\.
 
-_Type:_
-`list of list of string -> attribute set of raw value -> attribute set of raw value`
+_Type:_ `list of list of string -> attribute set -> attribute set`
 
 ## attrset\.removeAttrByPath
 
 Remove a nested attribute specified by a path from an attrset\.
 
-_Type:_
-`list of string -> attribute set of raw value -> attribute set of raw value`
+_Type:_ `list of string -> attribute set -> attribute set`
 
 ## attrset\.removeAttrsByPath
 
 Remove multiple nested attributes specified by a list of paths from an attrset\.
 
-_Type:_
-`list of list of string -> attribute set of raw value -> attribute set of raw value`
+_Type:_ `list of list of string -> attribute set -> attribute set`
 
 ## configurations\.make
 
@@ -141,11 +161,14 @@ _Type:_
   # Function description
   description: string,
 
+  # Unit test attrset or function for this function
+  tests: (attribute set of boolean) or (opaque function -> attribute set of boolean),
+
   # Function type
   type: optionType,
 
   ...
-} -> function -> function
+} -> opaque function -> opaque function
 ```
 
 ## docs\.libFunctionsMarkdown
@@ -170,6 +193,12 @@ _Type:_
   ...
 } -> string
 ```
+
+## docs\.libToOptions
+
+Render a flake library to options ready to be rendered to markdown\.
+
+_Type:_ `attribute set -> attribute set`
 
 ## docs\.moduleOptionsMarkdown
 
@@ -436,7 +465,7 @@ _Type:_
   includeInputModulesFromInputs: boolean,
 
   # Extra input modules to include during evaluation.
-  inputModules: list of raw value,
+  inputModules: list,
 
   # Flake inputs attrset
   # (typically the "inputs" from your "outputs = { ... }:" function).
@@ -472,7 +501,7 @@ _Type:_
   # "module-0", "module-1", etc.
   #
   # Each module is patched to have a key corresponding to its name.
-  selfModules: (list of raw value) or attribute set of raw value,
+  selfModules: (list) or (attribute set),
 
   # Separator used when generating names for modules
   # discovered on disk (via "root/prefix").
@@ -512,7 +541,7 @@ Flatten an evaluated NixOS\-style options tree into a sorted list\. Also
 descends into submodule option types \(including listOf submodule\) and removes
 any \`\_module\` options\.
 
-_Type:_ `raw value -> list of raw value`
+_Type:_ `raw value -> list`
 
 ## options\.toMarkdown
 
@@ -541,6 +570,25 @@ _Type:_
 Capitalize the first character of a string \(leaving the rest unchanged\)\.
 
 _Type:_ `string -> string`
+
+## string\.indent
+
+Indent \(or dedent via negative\) a multi\-line string by a number of spaces\.
+
+_Type:_ `signed integer -> string -> string`
+
+## string\.toTitle
+
+Convert a string into a simple title\.
+
+_Type:_ `string -> string`
+
+## string\.wordSplit
+
+Split a string into words on casing boundaries \(camelCase / PascalCase\) and
+delimiters \(whitespace / dashes / underscores\)\.
+
+_Type:_ `string -> list of string`
 
 ## submodules\.make
 
@@ -573,6 +621,29 @@ _Type:_
 
   ...
 } -> attribute set of module
+```
+
+## test\.eval
+
+Evaluate tests for a flake library attrset\.
+
+_Type:_
+
+```text
+{
+  # Library with tests to evaluate
+  lib: nested attribute set of raw value,
+
+  ...
+} -> {
+  # Message to display in case of test failure
+  message: null or string,
+
+  # Whether all tests passed
+  success: boolean,
+
+  ...
+}
 ```
 
 ## trivial\.importIfPath
