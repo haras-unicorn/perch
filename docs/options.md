@@ -260,6 +260,86 @@ Attribute set of all packages in the flake
 
 _Type:_ `attribute set of (attribute set)`
 
+## flakeTests\.args
+
+Additional arguments for "nix flake check"
+
+_Type:_ `list of string`
+
+_Default:_
+
+```nix
+[
+  "--override-input"
+  "self'"
+  (builtins.toString (
+    builtins.path {
+      path = config.flakeTests.root;
+      name = "self-prime";
+    }
+  ))
+]
+```
+
+## flakeTests\.asApps
+
+Aggregate checks of flakes from a specified path to apps in this flake
+
+_Type:_ `boolean`
+
+_Default:_ `false`
+
+## flakeTests\.asChecks
+
+Aggregate checks of flakes from a specified path to checks in this flake
+
+IMPORTANT: this will require the recursive\-nix feature which will most likely
+fail due to a current regression in nix \(nixpkgs issue 14529\)
+
+_Type:_ `boolean`
+
+_Default:_ `false`
+
+## flakeTests\.asPackages
+
+Aggregate checks of flakes from a specified path to packages in this flake
+
+_Type:_ `boolean`
+
+_Default:_ `false`
+
+## flakeTests\.path
+
+Path to test flakes
+
+_Type:_ `absolute path`
+
+_Default:_
+
+```nix
+lib.path.append config.flakeTests.root config.flakeTests.prefix
+```
+
+## flakeTests\.prefix
+
+The prefix from the root at which test flakes are located
+
+_Type:_ `string`
+
+_Default:_ `"test"`
+
+## flakeTests\.root
+
+The root of the repository used to get test flakes and to set "self'" input
+
+_Type:_ `absolute path`
+
+_Default:_
+
+```nix
+specialArgs.root
+```
+
 ## formatter
 
 The formatter

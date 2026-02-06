@@ -22,7 +22,7 @@ lint:
       --quiet \
       ...(fd '.*.md' | lines)
     nix flake check
-    nix run .#flake-test
+    nix run .#test-flake
 
 repl test *args:
     cd '{{ root }}/test/{{ test }}'; \

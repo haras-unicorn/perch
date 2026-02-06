@@ -7,6 +7,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-02-07
+
+### Added
+
+- `flakeTests.asPackages` option
+- depth parameter to flake test scripts for logging
+
+### Changed
+
+- names of flake test apps and checks
+- nicer log for flake tests
+
 ## [1.3.0] - 2026-02-04
 
 ### Changed

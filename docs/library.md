@@ -55,9 +55,6 @@ _Type:_
   # The attrset to flatten
   attrs: attribute set,
 
-  # Maximum recursion depth
-  maxDepth: (positive integer, meaning >0),
-
   # Final attrset key separator
   separator: string,
 
@@ -67,6 +64,13 @@ _Type:_
   ...
 } -> attribute set
 ```
+
+## attrset\.isDictionary
+
+Returns true for an attrset that is "safe" to peek into \(not a derivation and
+not an option type\)\.
+
+_Type:_ `attribute set -> boolean`
 
 ## attrset\.keepAttrByPath
 
@@ -565,6 +569,13 @@ _Type:_
 } -> string
 ```
 
+## packages\.asApps
+
+Convert packages to apps
+
+_Type:_
+`attribute set of attribute set of package -> attribute set of attribute set of raw value`
+
 ## string\.capitalize
 
 Capitalize the first character of a string \(leaving the rest unchanged\)\.
@@ -623,9 +634,35 @@ _Type:_
 } -> attribute set of module
 ```
 
-## test\.eval
+## test\.flake
 
-Evaluate tests for a flake library attrset\.
+Evaluate flake tests in a directory and returns an attrset in the form expected
+for flake outputs\.
+
+_Type:_
+
+```text
+{
+  # Additional arguments for "nix flake check"
+  args: list of string,
+
+  # Path to the directory containing test flakes
+  path: absolute path,
+
+  # Creates packages suitable for flake checks.
+  #
+  # IMPORTANT: this will require the recursive-nix feature
+  # which will most likely fail due to a current regression
+  # in nix (https://github.com/NixOS/nix/issues/14529)
+  recursive: boolean,
+
+  ...
+} -> attribute set of attribute set of package
+```
+
+## test\.unit
+
+Evaluate unit tests for a flake library attrset\.
 
 _Type:_
 

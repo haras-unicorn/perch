@@ -333,45 +333,66 @@
                         '';
                     cleanup = if recursive then "" else ''rm -rf "$tmp"'';
                     text = ''
+                      depth="''${1:-1}"
+                      if ! [[ "$depth" =~ ^[0-9]+$ ]]; then
+                        echo "Error: depth must be a positive integer" >&2
+                        exit 1
+                      fi
+                      prompt="$(printf '>%.0s' $(seq 1 "$depth"))"
+
                       cleanup() {
                         ${cleanup}
                       }
                       trap cleanup EXIT
                       ${setup}
+                      log="$tmp/flake-check.log"
+                      touch "$log"
 
-                      echo "testing ${name}..."
+                      echo "$prompt testing ${name}..."
+                      echo ""
 
                       cp -r "${flake}" "$tmp/src"
                       chmod -R u+rwX "$tmp/src"
                       cd "$tmp/src"
-                      echo "copied ${name} to tmp"
 
                       git init -q
                       git config user.name "flake-tester"
                       git config user.email "flake-tester@localhost"
                       git add .
                       git commit -qm "flake-test-${name}"
-                      echo "initialized ${name} git repo"
 
                       set +e
-                      log="$tmp/flake-check.log"
+                      printf "%s\n\n" "''${prompt}> nix flake show" >>"$log"
+                      nix flake show \
+                        --extra-experimental-features flakes \
+                        --extra-experimental-features nix-command \
+                        ${lib.escapeShellArgs args} \
+                        "git+file://$tmp/src" >>"$log" 2>&1
+                      rc=$?
+                      if [ "$rc" -ne 0 ]; then
+                        cat "$log" >&2
+                        echo "$prompt ${name} not ok!" >&2
+                        exit "$rc"
+                      fi
+                      printf "\n\n%s\n\n" "''${prompt}> nix flake check" >>"$log"
                       nix flake check \
                         --extra-experimental-features flakes \
                         --extra-experimental-features nix-command \
                         ${lib.escapeShellArgs args} \
-                        "git+file://$tmp/src" >"$log" 2>&1
+                        "git+file://$tmp/src" >>"$log" 2>&1
                       rc=$?
-                      set -e
-                      if [ "$rc" -eq 0 ]; then
-                        cp "$log" "''${out:?}"
-                        cat "''${out:?}"
-                        echo "ran ${name} check"
-                        echo "${name} ok!"
-                      else
+                      if [ "$rc" -ne 0 ]; then
                         cat "$log" >&2
-                        echo "${name} not ok!" >&2
+                        echo ""
+                        echo "$prompt ${name} not ok!" >&2
                         exit "$rc"
                       fi
+                      set -e
+
+                      cp "$log" "''${out:?}"
+                      cat "''${out:?}"
+                      echo ""
+                      echo "$prompt ${name} ok!"
                     '';
 
                     testName = "flake-test-${name}";

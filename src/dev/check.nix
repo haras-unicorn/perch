@@ -6,7 +6,7 @@
 
 {
   docTestsAsChecks = true;
-  flakeTests.asApps = true;
+  flakeTests.asPackages = true;
   flakeTests.args = [
     "--show-trace"
     "--no-update-lock-file"
