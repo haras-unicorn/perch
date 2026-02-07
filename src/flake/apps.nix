@@ -56,7 +56,7 @@ self.lib.factory.artifactModule {
                 };
 
                 flakeTest = pkgs.writeShellApplication {
-                  name = "flake-test";
+                  name = "test-flake";
                   text = builtins.concatStringsSep "\n" (
                     builtins.map ({ program, ... }: program) (builtins.attrValues systemFlakeTestApps)
                   );
@@ -66,9 +66,12 @@ self.lib.factory.artifactModule {
                 name = system;
                 value =
                   prevSystemApps
-                  // systemFlakeTestApps
+                  // (lib.mapAttrs' (name: value: {
+                    inherit value;
+                    name = "test-flake-${name}";
+                  }) systemFlakeTestApps)
                   // {
-                    flake-test = {
+                    test-flake = {
                       type = "app";
                       program = lib.getExe flakeTest;
                       meta.description = "Run all flake tests";

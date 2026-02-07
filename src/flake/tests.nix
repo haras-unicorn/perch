@@ -35,12 +35,25 @@
       path = lib.mkOption {
         type = lib.types.path;
         default = lib.path.append config.flakeTests.root config.flakeTests.prefix;
+        defaultText = lib.literalExpression ''lib.path.append config.flakeTests.root config.flakeTests.prefix'';
         description = "Path to test flakes";
       };
 
       args = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         description = ''Additional arguments for "nix flake check"'';
+        defaultText = lib.literalExpression ''
+          [
+            "--override-input"
+            "self'"
+            (builtins.toString (
+              builtins.path {
+                path = config.flakeTests.root;
+                name = "self-prime";
+              }
+            ))
+          ]
+        '';
         default = [
           "--override-input"
           "self'"

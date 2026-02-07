@@ -36,7 +36,7 @@ self.lib.factory.artifactModule {
 
           IMPORTANT: this will require the recursive-nix feature
           which will most likely fail due to a current regression
-          in nix (https://github.com/NixOS/nix/issues/14529)
+          in nix (nixpkgs issue 14529)
         '';
       };
     };
@@ -69,7 +69,13 @@ self.lib.factory.artifactModule {
                   in
                   {
                     name = system;
-                    value = prevSystemChecks // systemFlakeTests;
+                    value =
+                      prevSystemChecks
+                      // (lib.mapAttrs' (name: value: {
+                        inherit value;
+                        name = "test-flake-${name}";
+                      }) systemFlakeTests);
+
                   }
                 ) self.lib.defaults.systems
               )
