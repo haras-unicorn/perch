@@ -67,8 +67,8 @@ _Type:_
 
 ## attrset\.isDictionary
 
-Returns true for an attrset that is "safe" to peek into \(not a derivation and
-not an option type\)\.
+Returns true for an attrset that is "safe" to peek into \(not a derivation ,an
+option type or a functor\)\.
 
 _Type:_ `attribute set -> boolean`
 
@@ -151,6 +151,12 @@ placeholder\) and return the original value\.
 
 _Type:_ `raw value -> raw value`
 
+## debug\.traceString
+
+Create a JSON\-renderable view of a value;
+
+_Type:_ `raw value -> string`
+
 ## docs\.function
 
 Attach documentation \(and optional runtime assertions\) to a function\.
@@ -166,7 +172,45 @@ _Type:_
   description: string,
 
   # Unit test attrset or function for this function
-  tests: (attribute set of boolean) or (opaque function -> attribute set of boolean),
+  tests: ((attribute set of (boolean or ({
+  # Test failure message
+  message: string,
+
+  # Whether te test passes or not
+  success: boolean,
+
+  ...
+}) or ({
+  # Actual value to be equated with expected
+  actual: raw value,
+
+  # Expected value to be equated against actual
+  expected: raw value,
+
+  # Test failure message
+  message: string,
+
+  ...
+}))) or (opaque function -> attribute set of (boolean or ({
+  # Test failure message
+  message: string,
+
+  # Whether te test passes or not
+  success: boolean,
+
+  ...
+}) or ({
+  # Actual value to be equated with expected
+  actual: raw value,
+
+  # Expected value to be equated against actual
+  expected: raw value,
+
+  # Test failure message
+  message: string,
+
+  ...
+})))),
 
   # Function type
   type: optionType,

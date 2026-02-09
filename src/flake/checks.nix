@@ -86,7 +86,7 @@ self.lib.factory.artifactModule {
           let
             result = self.lib.test.unit { lib = specialArgs.self.lib; };
           in
-          if result.success then prevAndFlakeTestChecks else throw result.message
+          if result.success then prevAndFlakeTestChecks else builtins.throw result.message
         else
           prevAndFlakeTestChecks;
     };
