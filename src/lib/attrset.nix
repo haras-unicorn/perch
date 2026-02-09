@@ -83,7 +83,11 @@ let
     paths: attrs: builtins.foldl' (acc: path: recursiveMerge acc (keepAttrByPath path attrs)) { } paths;
 
   isDictionary =
-    value: builtins.isAttrs value && !(lib.isDerivation value) && !(lib.isOptionType value);
+    value:
+    builtins.isAttrs value
+    && !(lib.isDerivation value)
+    && !(lib.isOptionType value)
+    && !(lib.isFunction value);
 
   flatten =
     {
@@ -1176,7 +1180,7 @@ in
   flake.lib.attrset.isDictionary = self.lib.docs.function {
     description = ''
       Returns true for an attrset that is "safe" to peek into
-      (not a derivation and not an option type).
+      (not a derivation ,an option type or a functor).
     '';
     type = self.lib.types.function lib.types.attrs lib.types.bool;
   } isDictionary;

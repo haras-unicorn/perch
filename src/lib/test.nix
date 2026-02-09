@@ -69,7 +69,7 @@
             ignores_functions_without_tests =
               let
                 res = run {
-                  foo = (x: x + 1); # no doc attr => ignored
+                  foo = (x: x + 1);
                 };
               in
               res.success && res.message == null;
@@ -107,21 +107,6 @@
               && lib.strings.hasInfix "Tests failed!" res.message
               && lib.strings.hasInfix "bad" res.message
               && lib.strings.hasInfix "one_is_two" res.message;
-
-            throwing_tests_is_failed_evaluation =
-              let
-                res = run {
-                  explode = mkFn {
-                    name = "explode";
-                    body = x: x;
-                    tests = _: builtins.throw "boom";
-                  };
-                };
-              in
-              (!res.success)
-              && res.message != null
-              && lib.strings.hasInfix "failed evaluation" res.message
-              && lib.strings.hasInfix "explode" res.message;
           };
       }
       (
@@ -144,41 +129,68 @@
             builtins.map (
               { name, value, ... }:
               let
-                testEval = builtins.tryEval (
+                functionTests = builtins.addErrorContext "while evaluating tests results for function '${name}'" (
                   if nixpkgsLib.isFunction value.${self.lib.docs.functionDocAttr}.tests then
                     value.${self.lib.docs.functionDocAttr}.tests value
                   else
                     value.${self.lib.docs.functionDocAttr}.tests
                 );
+
+                tests = builtins.map (
+                  test:
+                  let
+                    initial =
+                      builtins.addErrorContext "while evaluating test '${test}' of function '${name}'"
+                        functionTests.${test};
+                  in
+                  {
+                    inherit test;
+
+                    function = name;
+
+                    success =
+                      if builtins.isAttrs initial then
+                        if initial ? success then
+                          let
+                            success = builtins.addErrorContext "while evaluating test '${test}' of function '${name}'" initial.value.success;
+                          in
+                          success
+                        else if initial ? actual && initial ? expected then
+                          let
+                            actual = builtins.addErrorContext "while evaluating test actual '${test}' of function '${name}'" initial.actual;
+                            expected = builtins.addErrorContext "while evaluating test expected '${test}' of function '${name}'" initial.expected;
+                          in
+                          actual == expected
+                        else
+                          false
+                      else
+                        initial;
+
+                    message =
+                      if builtins.isAttrs initial then
+                        if initial ? message && builtins.isString initial.message then
+                          initial.message
+                        else if initial ? actual && initial ? expected then
+                          let
+                            actual = builtins.addErrorContext "while evaluating test actual '${test}' of function '${name}'" initial.actual;
+                            expected = builtins.addErrorContext "while evaluating test expected '${test}' of function '${name}'" initial.expected;
+                          in
+                          "'${self.lib.debug.traceString actual}' is not equal to '${self.lib.debug.traceString expected}'"
+                        else
+                          "test failed"
+                      else
+                        "test failed";
+                  }
+                ) (builtins.attrNames functionTests);
+
+                success = builtins.all ({ success, ... }: success) tests;
+
+                message = if success then "" else "function failed";
               in
-              if testEval.success then
-                let
-                  success = builtins.all nixpkgsLib.id (builtins.attrValues testEval.value);
-                  message = if success then "" else "failed tests";
-                in
-                {
-                  inherit success message;
-                  function = name;
-                  tests = builtins.map (
-                    test:
-                    let
-                      success = test.value;
-                      message = if success then "failed test" else "";
-                    in
-                    {
-                      inherit success message;
-                      function = name;
-                      test = test.name;
-                    }
-                  ) (nixpkgsLib.attrsToList testEval.value);
-                }
-              else
-                {
-                  function = name;
-                  success = false;
-                  message = "failed evaluation";
-                  tests = [ ];
-                }
+              {
+                inherit success message tests;
+                function = name;
+              }
             ) (nixpkgsLib.attrsToList testedLibFunctions)
           );
           functionTestFailures = builtins.map (

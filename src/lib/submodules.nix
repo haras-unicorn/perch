@@ -56,7 +56,7 @@
         )) (lib.types.attrsOf lib.types.deferredModule);
         tests =
           let
-            submodules = self.lib.submodules.make {
+            testSubmodules = self.lib.submodules.make {
               flakeModules = {
                 withConfig = {
                   submodule = {
@@ -72,10 +72,24 @@
               config = "submodule";
               defaultConfig = "defaultSubmodule";
             };
+
+            emptySubmodules = self.lib.submodules.make {
+              flakeModules = {
+                empty = {
+                  someConfig = {
+                    value = 1;
+                  };
+                };
+              };
+              specialArgs = { inherit self; };
+              config = "submodule";
+              defaultConfig = "defaultSubmodule";
+            };
           in
           {
-            correct =
-              submodules == {
+            correct = {
+              actual = testSubmodules;
+              expected = {
                 default = {
                   value = 1;
                 };
@@ -83,6 +97,12 @@
                   value = 1;
                 };
               };
+            };
+
+            empty = {
+              actual = emptySubmodules;
+              expected = { };
+            };
           };
       }
       (
@@ -107,13 +127,15 @@
               || (conf ? config && conf.config ? ${defaultConfig} && conf.config.${defaultConfig})
             ) configs;
 
-          defaultModule =
+          defaultModules =
             let
               defaultModules = builtins.attrValues (
                 self.lib.eval.filter specialArgs filterDefaultModule filteredModules
               );
             in
-            if (builtins.length defaultModules) == 0 then
+            if builtins.length (builtins.attrNames filteredModules) == 0 then
+              { }
+            else if (builtins.length defaultModules) == 0 then
               {
                 default = {
                   imports = builtins.attrValues filteredModules;
@@ -141,7 +163,7 @@
                 // (if result ? key then { key = result.key; } else { })
                 // (if result ? _file then { _file = result._file; } else { })
               )
-          ) (filteredModules // defaultModule);
+          ) (filteredModules // defaultModules);
         in
         configModules
       );

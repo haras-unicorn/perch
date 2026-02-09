@@ -7,6 +7,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.2] - 2026-02-09
+
+### Added
+
+- `perch.lib.debug.traceString` that converts any value to a JSON-renderable
+  string that is used for testing and tracing
+
+### Changed
+
+- Fix default submodule existing even if no submodules exist in
+  `perch.lib.submodules.make`
+- Fix bug in `perch.lib.attrset.isDictionary` that would return true for
+  functors
+- Fix bug in `perch.lib.docs.libToOptions` that would use `isDictionary`
+  improperly
+- Allow for unit tests evaluated via `perch.lib.test.unit` to be attrsets for
+  richer test output
+- Switch to adding context to evaluation failures in `perch.lib.test.unit`
+
 ## [1.3.1] - 2026-02-07
 
 ### Added
@@ -163,6 +182,8 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - everything
 
+[1.3.2]: https://github.com/haras-unicorn/perch/compare/1.3.1...1.3.2
+[1.3.1]: https://github.com/haras-unicorn/perch/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/haras-unicorn/perch/compare/1.2.3...1.3.0
 [1.2.3]: https://github.com/haras-unicorn/perch/compare/1.2.2...1.2.3
 [1.2.2]: https://github.com/haras-unicorn/perch/compare/1.2.1...1.2.2

@@ -210,15 +210,14 @@
           impl = lib.fix (
             libToOptions: options:
             if self.lib.attrset.isDictionary options then
-              if options ? ${self.lib.docs.functionDocAttr} then
-                lib.mkOption { inherit (options.${self.lib.docs.functionDocAttr}) type description; }
-              else
-                let
-                  pruned = lib.filterAttrs (_: value: value != null) (
-                    lib.mapAttrs (_: value: libToOptions value) options
-                  );
-                in
-                if pruned == { } then null else pruned
+              let
+                pruned = lib.filterAttrs (_: value: value != null) (
+                  lib.mapAttrs (_: value: libToOptions value) options
+                );
+              in
+              if pruned == { } then null else pruned
+            else if options ? ${self.lib.docs.functionDocAttr} then
+              lib.mkOption { inherit (options.${self.lib.docs.functionDocAttr}) type description; }
             else
               null
           );
@@ -343,10 +342,44 @@
           tests = lib.mkOption {
             description = ''Unit test attrset or function for this function'';
             default = { };
-            type = lib.types.oneOf [
-              (lib.types.attrsOf lib.types.bool)
-              (self.lib.types.function self.lib.types.opaqueFunction (lib.types.attrsOf lib.types.bool))
-            ];
+            type =
+              let
+                messageOption = lib.mkOption {
+                  type = lib.types.str;
+                  description = "Test failure message";
+                  default = "test failed";
+                };
+
+                testType = lib.types.oneOf [
+                  lib.types.bool
+                  (self.lib.types.args {
+                    options = {
+                      success = lib.mkOption {
+                        type = lib.types.bool;
+                        description = "Whether te test passes or not";
+                      };
+                      message = messageOption;
+                    };
+                  })
+                  (self.lib.types.args {
+                    options = {
+                      actual = lib.mkOption {
+                        type = lib.types.raw;
+                        description = "Actual value to be equated with expected";
+                      };
+                      expected = lib.mkOption {
+                        type = lib.types.raw;
+                        description = "Expected value to be equated against actual";
+                      };
+                      message = messageOption;
+                    };
+                  })
+                ];
+              in
+              lib.types.oneOf [
+                (lib.types.attrsOf testType)
+                (self.lib.types.function self.lib.types.opaqueFunction (lib.types.attrsOf testType))
+              ];
           };
         };
       }) (self.lib.types.function self.lib.types.opaqueFunction self.lib.types.opaqueFunction);
