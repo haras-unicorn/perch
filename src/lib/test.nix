@@ -20,6 +20,16 @@
                   type = self.lib.types.recursiveAttrsOf lib.types.raw;
                   description = "Library with tests to evaluate";
                 };
+
+                pkgs = lib.mkOption {
+                  type = lib.types.raw;
+                  description = ''
+                    Pkgs constructed via nixpkgs.
+                    If provided, runs only tests that require pkgs.
+                    If not provided, runs only tests that do not require pkgs.
+                  '';
+                  default = null;
+                };
               };
             })
             (
@@ -30,13 +40,16 @@
                     description = "Whether all tests passed";
                   };
                   message = lib.mkOption {
-                    type = lib.types.nullOr lib.types.str;
-                    description = "Message to display in case of test failure";
+                    type = lib.types.str;
+                    description = "Message to display";
                   };
                 };
               }
             );
         tests =
+          {
+            pkgs ? null,
+          }:
           let
             doc = self.lib.docs.functionDocAttr;
 
@@ -57,14 +70,19 @@
                 };
               };
 
-            run = fakeLib: self.lib.test.unit { lib = fakeLib; };
+            run =
+              fakeLib:
+              self.lib.test.unit {
+                inherit pkgs;
+                lib = fakeLib;
+              };
           in
           {
             empty_lib_is_success =
               let
                 res = run { };
               in
-              res.success && res.message == null;
+              res.success;
 
             ignores_functions_without_tests =
               let
@@ -72,7 +90,7 @@
                   foo = (x: x + 1);
                 };
               in
-              res.success && res.message == null;
+              res.success;
 
             all_tests_pass_success =
               let
@@ -87,7 +105,7 @@
                   };
                 };
               in
-              res.success && res.message == null;
+              res.success;
 
             failing_test_sets_message =
               let
@@ -102,38 +120,129 @@
                   };
                 };
               in
-              !res.success
-              && res.message != null
-              && lib.strings.hasInfix "Tests failed!" res.message
-              && lib.strings.hasInfix "bad" res.message
-              && lib.strings.hasInfix "one_is_two" res.message;
+              if pkgs == null then
+                !res.success
+                && res.message != null
+                && lib.strings.hasInfix "Tests failed!" res.message
+                && lib.strings.hasInfix "bad" res.message
+                && lib.strings.hasInfix "one_is_two" res.message
+              else
+                res.success;
+
+            runs_tests_with_attrset_args =
+              let
+                res = run {
+                  test_attrset_args = mkFn {
+                    name = "test_attrset_args";
+                    body = x: x;
+                    tests =
+                      { test_attrset_args, target }:
+                      {
+                        id_is_id = (test_attrset_args 1) == 1;
+                        id_fails = (target 2) == 1;
+                      };
+                  };
+                };
+              in
+              if pkgs == null then
+                !res.success
+                && res.message != null
+                && lib.strings.hasInfix "Tests failed!" res.message
+                && !(lib.strings.hasInfix "id_is_id" res.message)
+                && lib.strings.hasInfix "id_fails" res.message
+              else
+                res.success;
+
+            runs_tests_with_pkgs_args =
+              let
+                res = run {
+                  test_pkgs_args = mkFn {
+                    name = "test_pkgs_args";
+                    body = x: x;
+                    tests =
+                      { target, pkgs }:
+                      {
+                        pkgs_is_pkgs =
+                          lib.hasAttrByPath [ "stdenv" "hostPlatform" "system" ] pkgs
+                          && builtins.isString pkgs.stdenv.hostPlatform.system;
+                      };
+                  };
+                  id_test = mkFn {
+                    name = "test_pkgs_args";
+                    body = x: x;
+                    tests =
+                      { target }:
+                      {
+                        id_is_id = (target 1) == 1;
+                        false_result = false;
+                      };
+                  };
+                };
+              in
+
+              if pkgs == null then
+                !res.success
+                && res.message != null
+                && lib.strings.hasInfix "Tests failed!" res.message
+                && !(lib.strings.hasInfix "pkgs_is_pkgs" res.message)
+                && lib.strings.hasInfix "false_result" res.message
+              else
+                res.success;
           };
       }
       (
         let
           nixpkgsLib = lib;
         in
-        { lib }:
+        {
+          lib,
+          pkgs ? null,
+        }:
         let
           flattenedLib = self.lib.attrset.flatten {
             separator = ".";
             attrs = lib;
           };
+
           testedLibFunctions = nixpkgsLib.filterAttrs (
             _: value:
             nixpkgsLib.isFunction value
             && value ? ${self.lib.docs.functionDocAttr}
             && value.${self.lib.docs.functionDocAttr} ? tests
           ) flattenedLib;
-          functionTestResults = nixpkgsLib.flatten (
+
+          functionTestResults = builtins.filter ({ tests, ... }: builtins.length tests > 0) (
             builtins.map (
               { name, value, ... }:
               let
                 functionTests = builtins.addErrorContext "while evaluating tests results for function '${name}'" (
                   if nixpkgsLib.isFunction value.${self.lib.docs.functionDocAttr}.tests then
-                    value.${self.lib.docs.functionDocAttr}.tests value
-                  else
+                    let
+                      functionArgs = nixpkgsLib.functionArgs value.${self.lib.docs.functionDocAttr}.tests;
+
+                      resultWithArgs = value.${self.lib.docs.functionDocAttr}.tests (
+                        nixpkgsLib.filterAttrs (name: _: functionArgs ? ${name}) {
+                          inherit pkgs;
+                          target = value;
+                          ${name} = value;
+                        }
+                      );
+                    in
+                    if pkgs == null then
+                      if functionArgs == { } then
+                        value.${self.lib.docs.functionDocAttr}.tests value
+                      else if functionArgs ? pkgs && functionArgs.pkgs == false then
+                        { }
+                      else
+                        resultWithArgs
+                    else if functionArgs ? pkgs then
+                      resultWithArgs
+                    else
+                      { }
+                  else if pkgs == null then
                     value.${self.lib.docs.functionDocAttr}.tests
+                  else
+                    { }
                 );
 
                 tests = builtins.map (
@@ -167,7 +276,9 @@
                         initial;
 
                     message =
-                      if builtins.isAttrs initial then
+                      if success then
+                        "passed"
+                      else if builtins.isAttrs initial then
                         if initial ? message && builtins.isString initial.message then
                           initial.message
                         else if initial ? actual && initial ? expected then
@@ -177,18 +288,19 @@
                           in
                           "'${self.lib.debug.traceString actual}' is not equal to '${self.lib.debug.traceString expected}'"
                         else
-                          "test failed"
+                          "failed"
                       else
-                        "test failed";
+                        "failed";
                   }
                 ) (builtins.attrNames functionTests);
 
                 success = builtins.all ({ success, ... }: success) tests;
-
-                message = if success then "" else "function failed";
               in
               {
-                inherit success message tests;
+                inherit success tests;
+
+                message = if success then "passed" else "failed";
+
                 function = name;
               }
             ) (nixpkgsLib.attrsToList testedLibFunctions)
@@ -196,6 +308,9 @@
           functionTestFailures = builtins.map (
             result: result // { tests = builtins.filter (result: !result.success) result.tests; }
           ) (builtins.filter (result: !result.success) functionTestResults);
+          functionTestPasses = builtins.map (
+            result: result // { tests = builtins.filter (result: result.success) result.tests; }
+          ) (builtins.filter (result: result.success) functionTestResults);
 
           totalFunctionCount = builtins.length functionTestResults;
           successFunctionCount = builtins.length (
@@ -209,46 +324,51 @@
               result: builtins.length (builtins.filter (result: result.success) result.tests)
             ) functionTestResults
           );
+          failedOrPassed = if successFunctionCount == totalFunctionCount then "passed" else "failed";
 
-          success = builtins.all ({ success, ... }: success) functionTestResults;
-          failureMessage = self.lib.string.indent 2 (
-            builtins.concatStringsSep "\n" (
-              builtins.map (
-                {
-                  function,
-                  message,
-                  tests,
-                  ...
-                }:
-                let
-                  testFailureMessage =
-                    if builtins.length tests > 0 then
-                      "\n"
-                      + self.lib.string.indent 2 (
-                        builtins.concatStringsSep "\n" (
-                          builtins.map ({ test, message, ... }: ''- ${test}: ${message}'') tests
+          mkAggregatedMessage =
+            failuresOrPasses:
+            self.lib.string.indent 2 (
+              builtins.concatStringsSep "\n" (
+                builtins.map (
+                  {
+                    function,
+                    message,
+                    tests,
+                    ...
+                  }:
+                  let
+                    aggregatedMessage =
+                      if builtins.length tests > 0 then
+                        "\n"
+                        + self.lib.string.indent 2 (
+                          builtins.concatStringsSep "\n" (
+                            builtins.map ({ test, message, ... }: ''- ${test}: ${message}'') tests
+                          )
                         )
-                      )
-                    else
-                      "";
-                in
-                ''- ${function}: ${message}'' + testFailureMessage
-              ) functionTestFailures
-            )
-          );
+                      else
+                        "";
+                  in
+                  ''- ${function}: ${message}'' + aggregatedMessage
+                ) failuresOrPasses
+              )
+            );
+        in
+        {
+          success = builtins.all ({ success, ... }: success) functionTestResults;
+
           message = ''
-            Tests failed!
+            Tests ${failedOrPassed}!
 
             Functions passed: ${builtins.toString successFunctionCount}/${builtins.toString totalFunctionCount}
             Tests passed: ${builtins.toString successTestCount}/${builtins.toString totalTestCount}
 
             Function failures:
-          ''
-          + failureMessage;
-        in
-        {
-          inherit success;
-          message = if success then null else message;
+            ${mkAggregatedMessage functionTestFailures}
+
+            Function passes:
+            ${mkAggregatedMessage functionTestPasses}
+          '';
         }
       );
 

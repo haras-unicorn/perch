@@ -417,3 +417,11 @@ Convert all packages to legacy packages and put them in flake outputs
 _Type:_ `boolean`
 
 _Default:_ `false`
+
+## traceDocTestsInChecks
+
+Whether to trace successful passes of library tests in checks
+
+_Type:_ `boolean`
+
+_Default:_ `false`

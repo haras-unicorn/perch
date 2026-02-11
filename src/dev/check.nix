@@ -6,6 +6,7 @@
 
 {
   docTestsAsChecks = true;
+  traceDocTestsInChecks = true;
   flakeTests.asPackages = true;
   flakeTests.args = [
     "--show-trace"
