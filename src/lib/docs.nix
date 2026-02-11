@@ -350,6 +350,11 @@
                   default = "test failed";
                 };
 
+                targetOption = lib.mkOption {
+                  type = self.lib.types.opaqueFunction;
+                  description = "Function to test";
+                };
+
                 testType = lib.types.oneOf [
                   lib.types.bool
                   (self.lib.types.args {
@@ -375,10 +380,28 @@
                     };
                   })
                 ];
+
+                attrsOfTestType = lib.types.attrsOf testType;
               in
               lib.types.oneOf [
-                (lib.types.attrsOf testType)
-                (self.lib.types.function self.lib.types.opaqueFunction (lib.types.attrsOf testType))
+                attrsOfTestType
+                (self.lib.types.function self.lib.types.opaqueFunction attrsOfTestType)
+                (self.lib.types.function (self.lib.types.args {
+                  options.target = targetOption;
+                }) attrsOfTestType)
+                (self.lib.types.function (self.lib.types.args {
+                  options = {
+                    target = targetOption;
+                    pkgs = lib.mkOption {
+                      type = lib.types.raw;
+                      description = ''
+                        Pkgs constructed from nixpkgs if available.
+                        If pkgs are required and not available for this test run
+                        this testing function wont be ran.
+                      '';
+                    };
+                  };
+                }) attrsOfTestType)
               ];
           };
         };

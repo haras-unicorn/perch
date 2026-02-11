@@ -210,6 +210,59 @@ _Type:_
   message: string,
 
   ...
+}))) or ({
+  # Function to test
+  target: opaque function,
+
+  ...
+} -> attribute set of (boolean or ({
+  # Test failure message
+  message: string,
+
+  # Whether te test passes or not
+  success: boolean,
+
+  ...
+}) or ({
+  # Actual value to be equated with expected
+  actual: raw value,
+
+  # Expected value to be equated against actual
+  expected: raw value,
+
+  # Test failure message
+  message: string,
+
+  ...
+}))) or ({
+  # Pkgs constructed from nixpkgs if available.
+  # If pkgs are required and not available for this test run
+  # this testing function wont be ran.
+  pkgs: raw value,
+
+  # Function to test
+  target: opaque function,
+
+  ...
+} -> attribute set of (boolean or ({
+  # Test failure message
+  message: string,
+
+  # Whether te test passes or not
+  success: boolean,
+
+  ...
+}) or ({
+  # Actual value to be equated with expected
+  actual: raw value,
+
+  # Expected value to be equated against actual
+  expected: raw value,
+
+  # Test failure message
+  message: string,
+
+  ...
 })))),
 
   # Function type
@@ -715,10 +768,15 @@ _Type:_
   # Library with tests to evaluate
   lib: nested attribute set of raw value,
 
+  # Pkgs constructed via nixpkgs.
+  # If provided, runs only tests that require pkgs.
+  # If not provided, runs only tests that do not require pkgs.
+  pkgs: raw value,
+
   ...
 } -> {
-  # Message to display in case of test failure
-  message: null or string,
+  # Message to display
+  message: string,
 
   # Whether all tests passed
   success: boolean,
