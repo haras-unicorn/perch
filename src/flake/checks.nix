@@ -63,6 +63,7 @@ self.lib.factory.artifactModule {
           flakeTests = self.lib.test.flake {
             path = config.flakeTests.path;
             args = config.flakeTests.args;
+            commands = config.flakeTests.commands;
             recursive = true;
           };
 

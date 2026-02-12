@@ -59,6 +59,7 @@ self.lib.factory.artifactModule {
             flakeTestPackages = self.lib.test.flake {
               path = config.flakeTests.path;
               args = config.flakeTests.args;
+              commands = config.flakeTests.commands;
             };
           in
           if config.flakeTests.asPackages then

@@ -65,6 +65,12 @@
           ))
         ];
       };
+
+      commands = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Extra commands to run for each flake during flake testing";
+      };
     };
   };
 }
