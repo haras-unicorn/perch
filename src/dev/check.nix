@@ -15,6 +15,9 @@
     "perch"
     (builtins.toString root)
   ];
+  flakeTests.commands = [
+    "echo 'Hello, world!'"
+  ];
   devShell = pkgs.mkShell {
     packages = with pkgs; [
       # version control

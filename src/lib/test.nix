@@ -388,6 +388,12 @@
             args = lib.mkOption {
               type = lib.types.listOf lib.types.str;
               description = ''Additional arguments for "nix flake check"'';
+              default = [ ];
+            };
+            commands = lib.mkOption {
+              type = lib.types.listOf lib.types.str;
+              default = [ ];
+              description = "Extra commands to run for each flake during flake testing";
             };
             recursive = lib.mkOption {
               type = lib.types.bool;
@@ -407,6 +413,7 @@
         {
           path,
           args ? [ ],
+          commands ? [ ],
           recursive ? false,
         }:
         builtins.listToAttrs (
@@ -449,6 +456,24 @@
 
                     requiredSystemFeatures = if recursive then [ "recursive-nix" ] else [ ];
 
+                    extra =
+                      if commands == [ ] then
+                        ""
+                      else
+                        builtins.concatStringsSep "\n" (
+                          builtins.map (command: ''
+                            printf "\n\n%s %s\n\n" "''${prompt}>" ${lib.escapeShellArg command} >>"$log"
+                            (${lib.trim command}) >>"$log" 2>&1
+                            # shellcheck disable=SC2320
+                            rc=$?
+                            if [ "$rc" -ne 0 ]; then
+                              cat "$log" >&2
+                              echo "$prompt ${name} not ok!" >&2
+                              exit "$rc"
+                            fi
+                          '') commands
+                        );
+
                     setup =
                       if recursive then
                         ''
@@ -463,7 +488,9 @@
                           tmp="$(mktemp -d)"
                           out="$tmp/out"
                         '';
+
                     cleanup = if recursive then "" else ''rm -rf "$tmp"'';
+
                     text = ''
                       depth="''${1:-1}"
                       if ! [[ "$depth" =~ ^[0-9]+$ ]]; then
@@ -506,6 +533,7 @@
                         echo "$prompt ${name} not ok!" >&2
                         exit "$rc"
                       fi
+                      ${extra}
                       printf "\n\n%s\n\n" "''${prompt}> nix flake check" >>"$log"
                       nix flake check \
                         --extra-experimental-features flakes \
