@@ -17,6 +17,10 @@
   ];
   flakeTests.commands = [
     "echo 'Hello, world!'"
+    ''
+      echo \
+        "tmp: $tmp"
+    ''
   ];
   devShell = pkgs.mkShell {
     packages = with pkgs; [
