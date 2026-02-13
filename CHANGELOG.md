@@ -7,7 +7,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.3.3] - 2026-02-12
+## [1.3.5] - 2026-02-13
+
+### Changed
+
+- flake test output improvement
+
+## [1.3.4] - 2026-02-12
 
 ### Added
 
@@ -200,6 +206,9 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - everything
 
+[1.3.5]: https://github.com/haras-unicorn/perch/compare/1.3.4...1.3.5
+[1.3.4]: https://github.com/haras-unicorn/perch/compare/1.3.3...1.3.4
+[1.3.3]: https://github.com/haras-unicorn/perch/compare/1.3.2...1.3.3
 [1.3.2]: https://github.com/haras-unicorn/perch/compare/1.3.1...1.3.2
 [1.3.1]: https://github.com/haras-unicorn/perch/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/haras-unicorn/perch/compare/1.2.3...1.3.0

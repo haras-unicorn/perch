@@ -461,17 +461,32 @@
                         ""
                       else
                         builtins.concatStringsSep "\n" (
-                          builtins.map (command: ''
-                            printf "\n\n%s %s\n\n" "''${prompt}>" ${lib.escapeShellArg command} >>"$log"
-                            (${lib.trim command}) >>"$log" 2>&1
-                            # shellcheck disable=SC2320
-                            rc=$?
-                            if [ "$rc" -ne 0 ]; then
-                              cat "$log" >&2
-                              echo "$prompt ${name} not ok!" >&2
-                              exit "$rc"
-                            fi
-                          '') commands
+                          builtins.map (
+                            command:
+                            let
+                              trimmed = lib.trim command;
+
+                              lines = builtins.filter builtins.isString (builtins.split "\n" trimmed);
+
+                              interpolations = builtins.concatStringsSep " " (
+                                builtins.map (line: ''"''${prompt}>" ${lib.escapeShellArg line}'') lines
+                              );
+
+                              format = builtins.concatStringsSep "\\n" (lib.lists.replicate (builtins.length lines) "%s %s");
+                            in
+                            ''
+                              # shellcheck disable=SC2016,SC1003
+                              printf "\n\n${format}\n\n" ${interpolations} >>"$log"
+                              (${trimmed}) >>"$log" 2>&1
+                              # shellcheck disable=SC2320
+                              rc=$?
+                              if [ "$rc" -ne 0 ]; then
+                                cat "$log" >&2
+                                echo "$prompt ${name} not ok!" >&2
+                                exit "$rc"
+                              fi
+                            ''
+                          ) commands
                         );
 
                     setup =
