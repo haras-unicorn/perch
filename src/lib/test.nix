@@ -465,21 +465,21 @@
                             command:
                             let
                               trimmed = lib.trim command;
-
-                              lines = builtins.filter builtins.isString (builtins.split "\n" trimmed);
-
-                              interpolations = builtins.concatStringsSep " " (
-                                builtins.map (line: ''"''${prompt}>" ${lib.escapeShellArg line}'') lines
-                              );
-
-                              format = builtins.concatStringsSep "\\n" (lib.lists.replicate (builtins.length lines) "%s %s");
                             in
                             ''
-                              # shellcheck disable=SC2016,SC1003
-                              printf "\n\n${format}\n\n" ${interpolations} >>"$log"
-                              (${trimmed}) >>"$log" 2>&1
-                              # shellcheck disable=SC2320
+                              script=$(cat <<'PERCH_DEV_FLAKE_TEST_ESCAPE'
+                              ${trimmed}
+                              PERCH_DEV_FLAKE_TEST_ESCAPE
+                              )
+                              {
+                                while IFS= read -r line; do
+                                  printf "%s> %s\n" "$prompt" "$line"
+                                done <<< "$script"
+                                printf "\n"
+                              } >> "$log"
+                              ( ${trimmed} ) >>"$log" 2>&1
                               rc=$?
+                              printf "\n\n" >>"$log"
                               if [ "$rc" -ne 0 ]; then
                                 cat "$log" >&2
                                 echo "$prompt ${name} not ok!" >&2
@@ -522,8 +522,7 @@
                       log="$tmp/flake-check.log"
                       touch "$log"
 
-                      echo "$prompt testing ${name}..."
-                      echo ""
+                      printf "%s testing ${name}...\n\n" "$prompt"
 
                       cp -r "${flake}" "$tmp/src"
                       chmod -R u+rwX "$tmp/src"
@@ -543,22 +542,23 @@
                         ${lib.escapeShellArgs args} \
                         "git+file://$tmp/src" >>"$log" 2>&1
                       rc=$?
+                      printf "\n\n" >>"$log"
                       if [ "$rc" -ne 0 ]; then
                         cat "$log" >&2
                         echo "$prompt ${name} not ok!" >&2
                         exit "$rc"
                       fi
                       ${extra}
-                      printf "\n\n%s\n\n" "''${prompt}> nix flake check" >>"$log"
+                      printf "%s\n\n" "''${prompt}> nix flake check" >>"$log"
                       nix flake check \
                         --extra-experimental-features flakes \
                         --extra-experimental-features nix-command \
                         ${lib.escapeShellArgs args} \
                         "git+file://$tmp/src" >>"$log" 2>&1
                       rc=$?
+                      printf "\n\n" >>"$log"
                       if [ "$rc" -ne 0 ]; then
                         cat "$log" >&2
-                        echo ""
                         echo "$prompt ${name} not ok!" >&2
                         exit "$rc"
                       fi
@@ -566,7 +566,6 @@
 
                       cp "$log" "''${out:?}"
                       cat "''${out:?}"
-                      echo ""
                       echo "$prompt ${name} ok!"
                     '';
 

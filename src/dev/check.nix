@@ -16,9 +16,10 @@
     (builtins.toString root)
   ];
   flakeTests.commands = [
-    "echo 'Hello, world!'"
+    ''printf "Hello, world!\n"''
     ''
-      echo \
+      printf \
+        "%s\n" \
         "tmp: $tmp"
     ''
   ];
