@@ -743,6 +743,9 @@ _Type:_
   # Additional arguments for "nix flake check"
   args: list of string,
 
+  # Extra commands to run for each flake during flake testing
+  commands: list of string,
+
   # Path to the directory containing test flakes
   path: absolute path,
 

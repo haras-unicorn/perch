@@ -304,18 +304,43 @@
             };
 
             flakeResult = flake specialArgs inputModules selfModules;
+
+            trimmedConfig = self.lib.attrset.removeAttrsByPath [
+              [
+                "flake"
+                "modules"
+              ]
+              [
+                "flake"
+                "config"
+              ]
+              [
+                "flake"
+                "options"
+              ]
+            ] flakeResult.config;
           in
           {
-            config_ok =
-              let
-                config = self.lib.attrset.removeAttrByPath [ "flake" "modules" "self" ] flakeResult.config;
-              in
-              # NOTE: flake.modules.default contains functions
-              (lib.recursiveUpdate config { flake.modules.default = null; }) == {
+            config_passed_down = {
+              actual = flakeResult.config.flake.config.private.self.self;
+              expected = "self";
+            };
+
+            config_ok = {
+              actual = trimmedConfig;
+              expected = {
                 eval.privateConfig = [
                   [
                     "flake"
                     "modules"
+                  ]
+                  [
+                    "flake"
+                    "options"
+                  ]
+                  [
+                    "flake"
+                    "config"
                   ]
                   [ "private" ]
                 ];
@@ -352,8 +377,9 @@
                   allowed = null;
                 };
 
-                flake.modules.default = null;
+                flake = { };
               };
+            };
 
             exported_public_only =
               let
@@ -363,6 +389,21 @@
                     allowed = "eval_exported_flake_public_only";
                   }
                 ) (inputModules ++ (builtins.attrValues flakeResult.config.flake.modules)) { };
+
+                trimmedConfig = self.lib.attrset.removeAttrsByPath [
+                  [
+                    "flake"
+                    "modules"
+                  ]
+                  [
+                    "flake"
+                    "config"
+                  ]
+                  [
+                    "flake"
+                    "options"
+                  ]
+                ] eval.config;
               in
               # NOTE: flake.modules.default.imports.0._file points to local file
               # because flake.modules gets stripped from public cuz its private config
@@ -375,13 +416,19 @@
               )
               && (builtins.head eval.config.flake.modules.default.imports).imports == [ { imports = [ ]; } ]
               &&
-                (lib.recursiveUpdate eval.config {
-                  flake.modules.default = null;
-                }) == {
+                trimmedConfig == {
                   eval.privateConfig = [
                     [
                       "flake"
                       "modules"
+                    ]
+                    [
+                      "flake"
+                      "options"
+                    ]
+                    [
+                      "flake"
+                      "config"
                     ]
                     [ "private" ]
                   ];
@@ -414,11 +461,7 @@
                     allowed = "eval_exported_flake_public_only";
                   };
 
-                  flake = {
-                    modules = {
-                      default = null;
-                    };
-                  };
+                  flake = { };
                 };
           };
       }
@@ -507,9 +550,13 @@
                 flakeModules = selfModules;
               };
 
-              flake.modules = flakeModules // {
-                default = {
-                  imports = builtins.attrValues flakeModules;
+              flake = {
+                options = stageTwoEval.options;
+                config = stageOneEval.config;
+                modules = flakeModules // {
+                  default = {
+                    imports = builtins.attrValues flakeModules;
+                  };
                 };
               };
             };
@@ -560,6 +607,18 @@
               description = "List of allowed argument names for module evaluation";
             };
 
+            flake.config = lib.mkOption {
+              type = lib.types.raw;
+              default = { };
+              description = "Evaluated flake config attrset";
+            };
+
+            flake.options = lib.mkOption {
+              type = lib.types.raw;
+              default = { };
+              description = "Evaluated flake options attrset";
+            };
+
             flake.modules = lib.mkOption {
               type = lib.types.attrsOf lib.types.deferredModule;
               default = { };
@@ -572,6 +631,14 @@
               [
                 "flake"
                 "modules"
+              ]
+              [
+                "flake"
+                "options"
+              ]
+              [
+                "flake"
+                "config"
               ]
             ];
 

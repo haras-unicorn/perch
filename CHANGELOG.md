@@ -7,6 +7,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.7] - 2026-02-14
+
+### Added
+
+- additional testing for module factories for `super` module arg
+- `config` and `options` attrs to flake output
+
 ## [1.3.6] - 2026-02-13
 
 ### Changed
@@ -212,6 +219,7 @@ and adheres to [Semantic Versioning](https://semver.org/).
 
 - everything
 
+[1.3.7]: https://github.com/haras-unicorn/perch/compare/1.3.6...1.3.7
 [1.3.6]: https://github.com/haras-unicorn/perch/compare/1.3.5...1.3.6
 [1.3.5]: https://github.com/haras-unicorn/perch/compare/1.3.4...1.3.5
 [1.3.4]: https://github.com/haras-unicorn/perch/compare/1.3.3...1.3.4

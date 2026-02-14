@@ -200,6 +200,14 @@ Attribute set of all checks in the flake
 
 _Type:_ `attribute set of (attribute set)`
 
+## flake\.config
+
+Evaluated flake config attrset
+
+_Type:_ `raw value`
+
+_Default:_ `{ }`
+
 ## flake\.devShells
 
 Attribute set of all devShells in the flake
@@ -245,6 +253,14 @@ _Type:_ `attribute set`
 Attribute set of all nixosModules in the flake
 
 _Type:_ `attribute set`
+
+## flake\.options
+
+Evaluated flake options attrset
+
+_Type:_ `raw value`
+
+_Default:_ `{ }`
 
 ## flake\.overlays
 
@@ -307,6 +323,14 @@ Aggregate checks of flakes from a specified path to packages in this flake
 _Type:_ `boolean`
 
 _Default:_ `false`
+
+## flakeTests\.commands
+
+Extra commands to run for each flake during flake testing
+
+_Type:_ `list of string`
+
+_Default:_ `[ ]`
 
 ## flakeTests\.path
 
