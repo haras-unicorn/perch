@@ -286,7 +286,9 @@
                             actual = builtins.addErrorContext "while evaluating test actual '${test}' of function '${name}'" initial.actual;
                             expected = builtins.addErrorContext "while evaluating test expected '${test}' of function '${name}'" initial.expected;
                           in
-                          "'${self.lib.debug.traceString actual}' is not equal to '${self.lib.debug.traceString expected}'"
+                          "actual is not equal to expected"
+                          + "\n  - actual: '${self.lib.debug.traceString actual}'"
+                          + "\n  - expected: '${self.lib.debug.traceString expected}'"
                         else
                           "failed"
                       else

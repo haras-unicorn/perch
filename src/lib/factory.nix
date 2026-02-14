@@ -8,18 +8,21 @@
 let
   tests =
     let
-      superConfig = { };
-      superOptions = { };
-
       nixosModule =
-        { specialArgs, flakeModules, ... }:
+        {
+          specialArgs,
+          flakeModules,
+          config,
+          options,
+          ...
+        }:
         self.lib.factory.submoduleModule {
           inherit
             specialArgs
             flakeModules
-            superConfig
-            superOptions
             ;
+          superConfig = config;
+          superOptions = options;
           config = "nixosModule";
         };
 
@@ -28,6 +31,8 @@ let
           specialArgs,
           nixpkgs,
           flakeModules,
+          config,
+          options,
           ...
         }:
         self.lib.factory.configurationModule {
@@ -35,9 +40,9 @@ let
             specialArgs
             nixpkgs
             flakeModules
-            superConfig
-            superOptions
             ;
+          superConfig = config;
+          superOptions = options;
           config = "nixosConfiguration";
           nixpkgsConfig = "nixosConfigurationNixpkgs";
         };
@@ -47,6 +52,8 @@ let
           specialArgs,
           nixpkgs,
           flakeModules,
+          config,
+          options,
           ...
         }:
         self.lib.factory.artifactModule {
@@ -54,9 +61,9 @@ let
             specialArgs
             nixpkgs
             flakeModules
-            superConfig
-            superOptions
             ;
+          superConfig = config;
+          superOptions = options;
           config = "package";
           nixpkgsConfig = "packageNixpkgs";
         };
@@ -66,6 +73,8 @@ let
           specialArgs,
           nixpkgs,
           flakeModules,
+          config,
+          options,
           ...
         }:
         self.lib.factory.artifactModule {
@@ -73,9 +82,9 @@ let
             specialArgs
             nixpkgs
             flakeModules
-            superConfig
-            superOptions
             ;
+          superConfig = config;
+          superOptions = options;
           config = "app";
           nixpkgsConfig = "appNixpkgs";
         };
@@ -84,14 +93,23 @@ let
         inputs = {
           inherit nixpkgs;
           input = {
-            modules.default = {
-              imports = [
-                nixosModule
-                packageModule
-                appModule
-                nixosConfigurationModule
-              ];
-            };
+            modules.default =
+              { lib, ... }:
+              {
+                imports = [
+                  nixosModule
+                  packageModule
+                  appModule
+                  nixosConfigurationModule
+                ];
+
+                options.myOption = lib.mkOption {
+                  type = lib.types.str;
+                  default = "default value";
+                };
+
+                config.myOption = "input value";
+              };
           };
         };
         selfModules = {
@@ -106,91 +124,109 @@ let
               system.stateVersion = "25.11";
             };
           };
-          someNixosModule = {
-            nixosModule = {
-              value = "some hello :)";
-            };
-            defaultNixosModule = true;
-          };
-          otherNixosModule = {
-            nixosModule = {
-              value = "other hello :)";
-            };
-          };
-          x86_64_Only =
-            { pkgs, ... }:
+          someNixosModule =
+            { super, ... }:
             {
-              package = "${pkgs.stdenv.hostPlatform.system} hello x86_64-linux :)";
+              nixosModule = {
+                value = "some hello :) with super ${super.config.myOption}";
+              };
+              defaultNixosModule = true;
+            };
+          otherNixosModule =
+            { super, ... }:
+            {
+              nixosModule = {
+                value = "other hello :) with super ${super.config.myOption}";
+              };
+            };
+          x86_64_Only =
+            { pkgs, super, ... }:
+            {
+              package = "${pkgs.stdenv.hostPlatform.system} hello x86_64-linux :) with super ${super.config.myOption}";
               packageNixpkgs.system = "x86_64-linux";
-              app = "${pkgs.stdenv.hostPlatform.system} hello x86_64-linux :)";
+              app = "${pkgs.stdenv.hostPlatform.system} hello x86_64-linux :) with super ${super.config.myOption}";
               appNixpkgs.system = "x86_64-linux";
             };
           allDefaultSystems =
-            { pkgs, ... }:
+            { pkgs, super, ... }:
             {
-              package = "${pkgs.stdenv.hostPlatform.system} hello all default systems :)";
+              package = "${pkgs.stdenv.hostPlatform.system} hello all default systems :) with super ${super.config.myOption}";
               defaultPackage = true;
-              app = "${pkgs.stdenv.hostPlatform.system} hello all default systems :)";
+              app = "${pkgs.stdenv.hostPlatform.system} hello all default systems :) with super ${super.config.myOption}";
             };
           none = { };
+          optionModule = {
+            myOption = lib.mkForce "self value";
+          };
         };
       };
     in
     {
-      factory_submodule_artifact_correct =
-        (builtins.removeAttrs flakeResult [
-          "modules"
-          "nixosConfigurations"
-        ]) == {
+      factory_submodule_artifact_correct = {
+        actual =
+          let
+            trimmed = builtins.removeAttrs flakeResult [
+              "modules"
+              "nixosConfigurations"
+              "options"
+              "config"
+            ];
+          in
+          trimmed
+          // {
+            nixosModules = builtins.mapAttrs (_: nixosModule: nixosModule { }) trimmed.nixosModules;
+          };
+        expected = {
           apps = {
             aarch64-darwin = {
-              allDefaultSystems = "aarch64-darwin hello all default systems :)";
+              allDefaultSystems = "aarch64-darwin hello all default systems :) with super self value";
             };
             aarch64-linux = {
-              allDefaultSystems = "aarch64-linux hello all default systems :)";
+              allDefaultSystems = "aarch64-linux hello all default systems :) with super self value";
             };
             x86_64-darwin = {
-              allDefaultSystems = "x86_64-darwin hello all default systems :)";
+              allDefaultSystems = "x86_64-darwin hello all default systems :) with super self value";
             };
             x86_64-linux = {
-              allDefaultSystems = "x86_64-linux hello all default systems :)";
-              x86_64_Only = "x86_64-linux hello x86_64-linux :)";
+              allDefaultSystems = "x86_64-linux hello all default systems :) with super self value";
+              x86_64_Only = "x86_64-linux hello x86_64-linux :) with super self value";
             };
           };
           nixosModules = {
             default = {
               key = "someNixosModule";
-              value = "some hello :)";
+              value = "some hello :) with super self value";
             };
             otherNixosModule = {
               key = "otherNixosModule";
-              value = "other hello :)";
+              value = "other hello :) with super self value";
             };
             someNixosModule = {
               key = "someNixosModule";
-              value = "some hello :)";
+              value = "some hello :) with super self value";
             };
           };
           packages = {
             aarch64-darwin = {
-              allDefaultSystems = "aarch64-darwin hello all default systems :)";
-              default = "aarch64-darwin hello all default systems :)";
+              allDefaultSystems = "aarch64-darwin hello all default systems :) with super self value";
+              default = "aarch64-darwin hello all default systems :) with super self value";
             };
             aarch64-linux = {
-              allDefaultSystems = "aarch64-linux hello all default systems :)";
-              default = "aarch64-linux hello all default systems :)";
+              allDefaultSystems = "aarch64-linux hello all default systems :) with super self value";
+              default = "aarch64-linux hello all default systems :) with super self value";
             };
             x86_64-darwin = {
-              allDefaultSystems = "x86_64-darwin hello all default systems :)";
-              default = "x86_64-darwin hello all default systems :)";
+              allDefaultSystems = "x86_64-darwin hello all default systems :) with super self value";
+              default = "x86_64-darwin hello all default systems :) with super self value";
             };
             x86_64-linux = {
-              allDefaultSystems = "x86_64-linux hello all default systems :)";
-              default = "x86_64-linux hello all default systems :)";
-              x86_64_Only = "x86_64-linux hello x86_64-linux :)";
+              allDefaultSystems = "x86_64-linux hello all default systems :) with super self value";
+              default = "x86_64-linux hello all default systems :) with super self value";
+              x86_64_Only = "x86_64-linux hello x86_64-linux :) with super self value";
             };
           };
         };
+      };
     };
 in
 {
