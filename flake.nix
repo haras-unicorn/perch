@@ -42,6 +42,8 @@
                 importLib.import.dirToFlatAttrsWithMetadata {
                   separator = "-";
                   dir = ./src;
+                  # NOTE: just as a test here
+                  pathRegex = "${builtins.toString ./src/lib}.*";
                 }
               )
           )

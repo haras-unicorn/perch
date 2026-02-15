@@ -46,7 +46,8 @@ let
                   if
                     let
                       nameOk = if nameRegex == null then true else (builtins.match nameRegex prefixedName) != null;
-                      pathOk = if pathRegex == null then true else (builtins.match pathRegex path) != null;
+                      pathOk =
+                        if pathRegex == null then true else (builtins.match pathRegex (builtins.toString path)) != null;
                     in
                     nameOk && pathOk
                   then
