@@ -26,6 +26,9 @@ let
                 prefixedName =
                   if prefix == "" then nameWithoutExtension else "${prefix}${separator}${nameWithoutExtension}";
 
+                path = lib.path.append dir name;
+                defaultPath = lib.path.append path "default.nix";
+
                 makeLeaf =
                   {
                     path,
@@ -57,24 +60,22 @@ let
               if type == "regular" then
                 if lib.hasSuffix ".nix" name then
                   makeLeaf {
-                    path = "${dir}/${name}";
+                    inherit path;
                     type = "regular";
-                    value = import "${dir}/${name}";
+                    value = import path;
                   }
                 else
                   makeLeaf {
-                    path = "${dir}/${name}";
+                    inherit path;
                     type = "unknown";
                     value = null;
                   }
-
-              else if !ignoreDefaults && builtins.pathExists "${dir}/${name}/default.nix" then
+              else if !ignoreDefaults && builtins.pathExists defaultPath then
                 makeLeaf {
-                  path = "${dir}/${name}/default.nix";
+                  path = defaultPath;
                   type = "default";
-                  value = import "${dir}/${name}/default.nix";
+                  value = import defaultPath;
                 }
-
               else
                 let
                   child = importDirToAttrsWithMap importDirToAttrsWithMap prefixedName {
@@ -85,7 +86,7 @@ let
                       pathRegex
                       ignoreDefaults
                       ;
-                    dir = "${dir}/${name}";
+                    dir = path;
                   };
                 in
                 if child == { } then
